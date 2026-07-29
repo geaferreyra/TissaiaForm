@@ -1,0 +1,1336 @@
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<style> html, body { margin: 0; padding: 0; background: #1c1420; } </style>
+<div id="tissaia-root"></div>
+<style>
+  #tissaia-root, #tissaia-root * { box-sizing: border-box; }
+  #tissaia-root {
+    --ink: #f4ede6;
+    --ink-dim: #c9b8ba;
+    --bg: #1c1420;
+    --bg-raised: #251b2c;
+    --bg-field: #2c2033;
+    --plum: #5c2a4d;
+    --gold: #c9a66b;
+    --gold-soft: rgba(201,166,107,0.18);
+    --blush: #d99aa4;
+    --ok: #7fae8a;
+    --danger: #d97757;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding-bottom: 84px;
+    position: relative;
+  }
+  #tissaia-root .header {
+    padding: 28px 20px 18px;
+    text-align: center;
+    border-bottom: 1px solid rgba(201,166,107,0.25);
+    background: linear-gradient(180deg, var(--plum) 0%, var(--bg) 100%);
+  }
+  #tissaia-root .brand {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    letter-spacing: 0.06em;
+    color: var(--gold);
+    margin: 0;
+  }
+  #tissaia-root .stitch {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    margin: 8px 0 2px;
+  }
+  #tissaia-root .stitch span {
+    width: 5px; height: 1px; background: var(--gold); opacity: 0.6;
+  }
+  #tissaia-root .subbrand {
+    font-size: 11.5px; color: var(--ink-dim); letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  #tissaia-root .panel { display: none; padding: 18px 18px 8px; animation: fadein .2s ease; }
+  #tissaia-root .panel.active { display: block; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform: translateY(0);} }
+
+  #tissaia-root h2 {
+    font-family: Georgia, serif; font-weight: 400; font-size: 19px; color: var(--ink);
+    margin: 4px 0 4px;
+  }
+  #tissaia-root .hint { font-size: 12.5px; color: var(--ink-dim); margin: 0 0 18px; line-height: 1.5; }
+
+  #tissaia-root label {
+    display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--gold); margin: 16px 0 6px;
+  }
+  #tissaia-root input[type=text], #tissaia-root input[type=number], #tissaia-root input[type=date],
+  #tissaia-root select, #tissaia-root textarea {
+    width: 100%; padding: 12px 13px; border-radius: 10px; border: 1px solid rgba(201,166,107,0.3);
+    background: var(--bg-field); color: var(--ink); font-size: 15px; outline: none;
+  }
+  #tissaia-root input:focus, #tissaia-root select:focus, #tissaia-root textarea:focus {
+    border-color: var(--gold);
+  }
+  #tissaia-root select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%), linear-gradient(135deg, var(--gold) 50%, transparent 50%); background-position: calc(100% - 18px) center, calc(100% - 13px) center; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+
+  #tissaia-root .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  #tissaia-root .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; min-height: 30px; }
+  #tissaia-root .chip {
+    background: var(--gold-soft); border: 1px solid var(--gold); color: var(--gold);
+    padding: 6px 12px; border-radius: 999px; font-size: 13px; display: flex; align-items: center; gap: 6px;
+  }
+  #tissaia-root .chip button { background: none; border: none; color: var(--gold); font-size: 14px; cursor: pointer; line-height: 1; padding: 0; }
+  #tissaia-root .add-chip-row { display: flex; gap: 8px; margin-top: 8px; }
+  #tissaia-root .ajuste-row {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px;
+    background: var(--bg-field); border: 1px solid rgba(201,166,107,0.25); border-radius: 10px;
+  }
+  #tissaia-root .ajuste-row .ajuste-nombre { flex: 1; font-size: 13.5px; }
+  #tissaia-root .ajuste-row .ajuste-signo {
+    width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--gold); background: none;
+    color: var(--gold); font-size: 15px; cursor: pointer; flex-shrink: 0;
+  }
+  #tissaia-root .ajuste-row .ajuste-pct {
+    width: 52px; padding: 6px; text-align: center; background: var(--bg); border: 1px solid rgba(201,166,107,0.3);
+    border-radius: 8px; color: var(--ink); font-size: 13.5px;
+  }
+  #tissaia-root .ajuste-row .ajuste-borrar { background: none; border: none; color: var(--ink-dim); font-size: 14px; cursor: pointer; }
+  #tissaia-root .ajuste-row input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--gold); flex-shrink: 0; }
+  #tissaia-root .add-chip-row input { flex: 1; }
+  #tissaia-root .btn-mini {
+    background: var(--bg-field); border: 1px solid var(--gold); color: var(--gold);
+    border-radius: 10px; padding: 0 16px; font-size: 14px; cursor: pointer;
+  }
+
+  #tissaia-root .btn-primary {
+    width: 100%; margin-top: 26px; padding: 15px; border-radius: 12px; border: none;
+    background: var(--gold); color: #1c1420; font-weight: 600; font-size: 15px; letter-spacing: 0.03em;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #tissaia-root .btn-primary:active { transform: scale(0.99); }
+  #tissaia-root .btn-primary:disabled { opacity: 0.75; cursor: wait; }
+  #tissaia-root .spinner {
+    width: 15px; height: 15px; border-radius: 50%;
+    border: 2px solid rgba(28,20,32,0.3); border-top-color: #1c1420;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #tissaia-root .btn-secondary {
+    width: 100%; margin-top: 10px; padding: 13px; border-radius: 12px;
+    background: transparent; border: 1px solid rgba(201,166,107,0.4); color: var(--ink-dim); font-size: 14px; cursor: pointer;
+  }
+  #tissaia-root .type-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  #tissaia-root .type-toggle button {
+    padding: 12px 4px; border-radius: 10px; border: 1px solid rgba(201,166,107,0.3);
+    background: var(--bg-field); color: var(--ink-dim); font-size: 13.5px; cursor: pointer;
+  }
+  #tissaia-root .type-toggle button.active { background: var(--gold); color: #1c1420; border-color: var(--gold); font-weight: 600; }
+  #tissaia-root .pay-toggle { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; }
+  #tissaia-root .pay-toggle button {
+    padding: 10px 2px; border-radius: 9px; border: 1px solid rgba(201,166,107,0.3);
+    background: var(--bg-field); color: var(--ink-dim); font-size: 12.5px; cursor: pointer;
+  }
+  #tissaia-root .pay-toggle button.active { background: var(--blush); color: #1c1420; border-color: var(--blush); font-weight: 600; }
+
+  #tissaia-root .suggested-price {
+    margin-top: 8px; font-size: 12.5px; color: var(--ink-dim);
+  }
+  #tissaia-root .suggested-price b { color: var(--gold); }
+
+  #tissaia-root .search-result {
+    padding: 12px 13px; border: 1px solid rgba(201,166,107,0.25); border-radius: 10px;
+    margin-top: 8px; cursor: pointer; background: var(--bg-field);
+  }
+  #tissaia-root .search-result:active { background: var(--gold-soft); }
+  #tissaia-root .search-result .sr-code { color: var(--gold); font-size: 12px; letter-spacing: 0.04em; }
+  #tissaia-root .search-result .sr-desc { font-size: 14.5px; margin-top: 2px; }
+  #tissaia-root .selected-product {
+    background: var(--gold-soft); border: 1px solid var(--gold); border-radius: 10px; padding: 12px 13px; margin-top: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #tissaia-root .selected-product .sp-code { color: var(--gold); font-size: 12px; }
+  #tissaia-root .selected-product button { background: none; border: none; color: var(--ink-dim); font-size: 13px; cursor: pointer; text-decoration: underline; }
+
+  #tissaia-root .empty-state { text-align: center; padding: 40px 20px; color: var(--ink-dim); }
+  #tissaia-root .empty-state .es-mark { font-size: 30px; color: var(--gold); margin-bottom: 10px; }
+
+  #tissaia-root .queue-item {
+    border: 1px solid rgba(201,166,107,0.25); border-radius: 10px; padding: 12px 13px; margin-bottom: 10px;
+    background: var(--bg-raised);
+  }
+  #tissaia-root .queue-item .qi-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--gold); }
+  #tissaia-root .queue-item .qi-desc { font-size: 14.5px; margin-top: 4px; }
+  #tissaia-root .queue-item .qi-meta { font-size: 12px; color: var(--ink-dim); margin-top: 4px; }
+
+  #tissaia-root .tabbar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 480px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+    background: var(--bg-raised); border-top: 1px solid rgba(201,166,107,0.25);
+    padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+  }
+  #tissaia-root .tabbar button {
+    background: none; border: none; color: var(--ink-dim); font-size: 11.5px; letter-spacing: 0.03em;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; padding: 4px;
+  }
+  #tissaia-root .tabbar button .ic { font-size: 18px; }
+  #tissaia-root .tabbar button.active { color: var(--gold); }
+  #tissaia-root .toast {
+    position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
+    background: var(--ok); color: #12261a; padding: 10px 20px; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; opacity: 0; transition: opacity .25s ease; pointer-events: none;
+    max-width: 90%; text-align: center; z-index: 50;
+  }
+  #tissaia-root .toast.show { opacity: 1; }
+  #tissaia-root .error-overlay {
+    position: fixed; inset: 0; background: rgba(10,6,12,0.6); z-index: 90;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  #tissaia-root .error-overlay.show { display: flex; }
+  #tissaia-root .error-card {
+    background: var(--bg-raised); border: 1px solid var(--danger); border-radius: 16px 16px 0 0;
+    max-width: 480px; width: 100%; padding: 22px 20px calc(20px + env(safe-area-inset-bottom));
+    animation: slideup .2s ease;
+  }
+  @keyframes slideup { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+  #tissaia-root .error-card .ec-title { color: var(--danger); font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; margin-bottom: 8px; }
+  #tissaia-root .error-card .ec-msg { font-size: 15px; line-height: 1.5; color: var(--ink); margin-bottom: 18px; }
+  #tissaia-root .error-card button {
+    width: 100%; padding: 13px; border-radius: 12px; border: none;
+    background: var(--danger); color: #2a140c; font-weight: 700; font-size: 14.5px; cursor: pointer;
+  }
+  #tissaia-root .copybox {
+    width: 100%; min-height: 90px; font-family: monospace; font-size: 11px; color: var(--ink-dim);
+    background: var(--bg-field); border: 1px solid rgba(201,166,107,0.3); border-radius: 10px; padding: 10px;
+  }
+  #tissaia-root .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-dim); margin: 22px 0 8px;
+  }
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+  const CATS = [
+    ["Accesorio","ACC"],["Arnes","ARN"],["Bikini","BIK"],["Body","BOD"],["Bombacha","BOM"],
+    ["Boxer","BOX"],["Bralette","BRA"],["Bralette con arco","BCA"],["Bralette sin arco","BSA"],
+    ["Cancan","CAN"],["Colaless","COL"],["Corpiño","COR"],["Culote","CUL"],["Deportivo","DEP"],
+    ["Medias","MED"],["Pijama","PIJ"],["Simple Algodón","SIM"],["Slip","SLI"],["Soquetes","SOQ"],
+    ["Taza Soft con arco","TCA"],["Taza Soft sin arco","TSA"],["Térmicas","TER"],["Vedetina","VED"],
+    ["Guantes","GUA"],["Malla","MAL"],["Pezoneras","PEZ"]
+  ];
+  const MARGENES = {
+    "Accesorio":[0.50,0.30],"Arnes":[0.45,0.28],"Bikini":[0.55,0.35],"Body":[0.55,0.35],
+    "Bombacha":[0.50,0.30],"Boxer":[0.45,0.28],"Bralette":[0.55,0.35],"Bralette con arco":[0.55,0.35],
+    "Bralette sin arco":[0.55,0.35],"Cancan":[0.45,0.28],"Colaless":[0.50,0.30],"Corpiño":[0.55,0.35],
+    "Culote":[0.50,0.30],"Deportivo":[0.45,0.28],"Medias":[0.40,0.25],"Pijama":[0.50,0.30],
+    "Simple Algodón":[0.45,0.28],"Slip":[0.50,0.30],"Soquetes":[0.40,0.25],
+    "Taza Soft con arco":[0.55,0.35],"Taza Soft sin arco":[0.55,0.35],"Térmicas":[0.45,0.28],
+    "Vedetina":[0.55,0.35],"Guantes":[0.45,0.28],"Malla":[0.45,0.28],"Pezoneras":[0.45,0.28]
+  };
+  const UMBRAL_MAYOR = 6;
+  const CODE_OFFSET = 9000; // los codigos nuevos generados desde la app arrancan en 9000+ para no chocar con los del Excel
+
+  let PRODUCTOS = {};       // codigoBase -> objeto producto
+  let CONTADORES = {};      // abrev -> numero
+  let PEND_MOV = [];        // movimientos pendientes de exportar
+  let PEND_PROD = [];       // productos/variantes pendientes de exportar
+  let productoSeleccionado = null;
+  let talleColorSeleccion = null;
+
+  const root = document.getElementById('tissaia-root');
+
+  function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+  function fmtMoney(n){ return '$' + (Math.round(n*100)/100).toLocaleString('es-AR'); }
+  function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+  function toast(msg){
+    const t = root.querySelector('.toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 3600);
+  }
+  function showError(msg){
+    const overlay = root.querySelector('.error-overlay');
+    overlay.querySelector('.ec-msg').textContent = msg;
+    overlay.classList.add('show');
+  }
+  // se conecta una sola vez, al armar el layout general
+  function initErrorOverlay(){
+    const overlay = root.querySelector('.error-overlay');
+    overlay.querySelector('#btn-error-ok').addEventListener('click', ()=> overlay.classList.remove('show'));
+    overlay.addEventListener('click', (e)=>{ if(e.target === overlay) overlay.classList.remove('show'); });
+  }
+  function setLoading(btn, loading, textoCargando){
+    if(loading){
+      btn.dataset.textoOriginal = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="spinner"></span>${textoCargando || 'Guardando…'}`;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.textoOriginal || btn.innerHTML;
+    }
+  }
+
+  // ---------- Capa de almacenamiento con respaldo ----------
+  // Si el archivo se abre DENTRO de Claude (como artifact), usa window.storage (persiste en la nube).
+  // Si se abre como HTML suelto en el navegador del celular, window.storage no existe:
+  // en ese caso usamos localStorage del propio navegador, que persiste igual en ese dispositivo.
+  const LS_PREFIX = 'tissaia_';
+  const usingFallback = !(window.storage && typeof window.storage.get === 'function');
+
+  const storageAPI = usingFallback ? {
+    async get(key){
+      const v = localStorage.getItem(LS_PREFIX + key);
+      if (v === null) throw new Error('not found');
+      return { key, value: v };
+    },
+    async set(key, value){
+      localStorage.setItem(LS_PREFIX + key, value);
+      return { key, value };
+    }
+  } : window.storage;
+
+  async function safeGet(key, fallback){
+    try {
+      const r = await storageAPI.get(key);
+      return r ? JSON.parse(r.value) : fallback;
+    } catch(e){ return fallback; }
+  }
+  async function safeSet(key, value){
+    try {
+      await storageAPI.set(key, JSON.stringify(value));
+      return true;
+    } catch(e){
+      toast('No se pudo guardar (' + e.message + ')');
+      return false;
+    }
+  }
+
+  async function loadAll(){
+    PRODUCTOS   = await safeGet('productos', {});
+    CONTADORES  = await safeGet('contadores', {});
+    PEND_MOV    = await safeGet('pendientes_movimientos', []);
+    PEND_PROD   = await safeGet('pendientes_productos', []);
+    SHEETS_URL  = await safeGet('sheets_url', '');
+  }
+  async function saveProductos(){ return safeSet('productos', PRODUCTOS); }
+  async function saveContadores(){ return safeSet('contadores', CONTADORES); }
+  async function savePendMov(){ return safeSet('pendientes_movimientos', PEND_MOV); }
+  async function savePendProd(){ return safeSet('pendientes_productos', PEND_PROD); }
+  async function saveSheetsUrl(){ return safeSet('sheets_url', SHEETS_URL); }
+
+  // ---------- Conexión con Google Sheets (Apps Script) ----------
+  let SHEETS_URL = '';
+
+  async function sheetsGet(params){
+    if(!SHEETS_URL) return null;
+    const url = SHEETS_URL + (SHEETS_URL.includes('?') ? '&' : '?') + params;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+  async function sheetsPost(payload){
+    if(!SHEETS_URL) return null;
+    // Sin header Content-Type explícito: evita el preflight CORS que Apps Script no responde.
+    const res = await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(payload) });
+    if(!res.ok) throw new Error('HTTP ' + res.status); // error de conexión/servidor
+    const json = await res.json();
+    if(!json.ok){
+      const err = new Error(json.error || 'Error desconocido');
+      err.esValidacion = true; // el script corrió bien pero rechazó el dato (duplicado, sin stock, etc.)
+      throw err;
+    }
+    return json;
+  }
+
+  async function sincronizarCatalogoDesdeSheets(silencioso){
+    if(!SHEETS_URL) return false;
+    try {
+      const data = await sheetsGet('action=catalogo');
+      if(data && data.productos){
+        PRODUCTOS = data.productos;
+        // nos quedamos con el contador mas alto entre lo local y lo que vino de la hoja
+        Object.keys(data.contadores || {}).forEach(abbr=>{
+          if(!CONTADORES[abbr] || CONTADORES[abbr] < data.contadores[abbr]) CONTADORES[abbr] = data.contadores[abbr];
+        });
+        await saveProductos(); await saveContadores();
+        if(!silencioso) toast('Catálogo sincronizado con Google Sheets');
+        return true;
+      }
+    } catch(e){
+      if(!silencioso) toast('No se pudo sincronizar: ' + e.message);
+    }
+    return false;
+  }
+
+  function nextCode(abbr){
+    const base = CONTADORES[abbr] || CODE_OFFSET;
+    const next = base + 1;
+    CONTADORES[abbr] = next;
+    return abbr + '-' + next;
+  }
+
+  // ---------- estructura general ----------
+  root.innerHTML = `
+    <div class="header">
+      <p class="brand">Tissaia</p>
+      <div class="stitch"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="subbrand">Carga rápida de mercadería</p>
+      ${usingFallback ? '<p class="hint" style="margin-top:8px;color:var(--blush);">📱 Guardado en este dispositivo/navegador. Si lo abrís desde otro celular u otro navegador, no vas a ver estos datos.</p>' : ''}
+    </div>
+    <div class="panel" id="panel-catalogo"></div>
+    <div class="panel active" id="panel-articulo"></div>
+    <div class="panel" id="panel-movimiento"></div>
+    <div class="panel" id="panel-exportar"></div>
+    <div class="toast"></div>
+    <div class="error-overlay">
+      <div class="error-card">
+        <div class="ec-title">No se pudo guardar</div>
+        <div class="ec-msg"></div>
+        <button id="btn-error-ok">Entendido</button>
+      </div>
+    </div>
+    <div class="tabbar">
+      <button data-tab="catalogo"><span class="ic">⌂</span>Catálogo</button>
+      <button data-tab="articulo" class="active"><span class="ic">✦</span>Artículo</button>
+      <button data-tab="movimiento"><span class="ic">↕</span>Movimiento</button>
+      <button data-tab="exportar"><span class="ic">⇪</span>Exportar</button>
+    </div>
+  `;
+
+  root.querySelectorAll('.tabbar button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      root.querySelectorAll('.tabbar button').forEach(b=>b.classList.remove('active'));
+      root.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      root.querySelector('#panel-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='exportar') renderExportar();
+      if(btn.dataset.tab==='movimiento') renderMovimiento();
+      if(btn.dataset.tab==='catalogo') renderCatalogo();
+    });
+  });
+
+  // ============================================================
+  // PANEL 0: CATÁLOGO (conexión con Google Sheets + importar Excel)
+  // ============================================================
+  function renderCatalogo(){
+    const p = root.querySelector('#panel-catalogo');
+    const cantProductos = Object.keys(PRODUCTOS).length;
+    const cantVariantes = Object.values(PRODUCTOS).reduce((a,pr)=>a+pr.variantes.length,0);
+    const conectado = !!SHEETS_URL;
+    p.innerHTML = `
+      <h2>Catálogo</h2>
+
+      <div class="section-label">Conexión con Google Sheets</div>
+      <p class="hint">
+        ${conectado
+          ? '🟢 Conectado. Los artículos y movimientos se guardan directo en tu Google Sheet.'
+          : 'Sin conectar todavía. Pegá acá la URL que te dio Google al publicar el script (te la paso en las instrucciones).'}
+      </p>
+      <input type="text" id="f-sheets-url" placeholder="https://script.google.com/macros/s/..." value="${SHEETS_URL || ''}" />
+      <button class="btn-primary" id="btn-guardar-url">${conectado ? 'Actualizar conexión' : 'Conectar'}</button>
+      ${conectado ? `<button class="btn-secondary" id="btn-sync-ahora">Sincronizar catálogo ahora</button>
+                      <button class="btn-secondary" id="btn-desconectar">Desconectar</button>` : ''}
+
+      ${conectado ? `
+        <div class="section-label" style="margin-top:26px;">Categorías y márgenes</div>
+        <p class="hint">Cambiá el % acá y se actualiza para todos los artículos de esa categoría.</p>
+        <div id="bloque-categorias"><p class="hint">Cargando…</p></div>
+      ` : ''}
+
+      <div class="section-label" style="margin-top:26px;">Catálogo cargado en este dispositivo</div>
+      <p class="hint">
+        ${cantProductos
+          ? `Tenés <b style="color:var(--gold)">${cantProductos}</b> artículos y <b style="color:var(--gold)">${cantVariantes}</b> variantes cargadas acá.`
+          : `Todavía no hay artículos cargados.`}
+      </p>
+
+      ${!conectado ? `
+        <p class="hint">Sin conexión a Sheets también podés importar una foto puntual de tu Excel (no se actualiza sola):</p>
+        <input type="file" id="input-file-importar" accept=".xlsx,.xls" style="display:none;" />
+        <button class="btn-secondary" id="btn-importar">Importar desde archivo Excel</button>
+        <p class="hint" id="importar-status" style="margin-top:10px;"></p>
+      ` : ''}
+      ${cantProductos ? `<button class="btn-secondary" id="btn-borrar-catalogo">Borrar catálogo de este dispositivo</button>` : ''}
+    `;
+
+    p.querySelector('#btn-guardar-url').addEventListener('click', async ()=>{
+      const val = p.querySelector('#f-sheets-url').value.trim();
+      if(!val){ toast('Pegá la URL primero'); return; }
+      SHEETS_URL = val;
+      await saveSheetsUrl();
+      toast('Probando conexión…');
+      const ok = await sincronizarCatalogoDesdeSheets(false);
+      if(ok) renderCatalogo();
+    });
+    const btnSync = p.querySelector('#btn-sync-ahora');
+    if(btnSync) btnSync.addEventListener('click', async ()=>{
+      await sincronizarCatalogoDesdeSheets(false);
+      renderCatalogo();
+    });
+    const btnDesconectar = p.querySelector('#btn-desconectar');
+    if(btnDesconectar) btnDesconectar.addEventListener('click', async ()=>{
+      SHEETS_URL = ''; await saveSheetsUrl();
+      toast('Desconectado de Google Sheets');
+      renderCatalogo();
+    });
+
+    const fileInput = p.querySelector('#input-file-importar');
+    if(fileInput){
+      p.querySelector('#btn-importar').addEventListener('click', ()=> fileInput.click());
+      fileInput.addEventListener('change', async (e)=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        p.querySelector('#importar-status').textContent = 'Leyendo archivo…';
+        try {
+          await importarDesdeArchivo(file);
+        } catch(err){
+          p.querySelector('#importar-status').textContent = '❌ ' + err.message;
+          return;
+        }
+        renderCatalogo();
+      });
+    }
+    const btnBorrar = p.querySelector('#btn-borrar-catalogo');
+    if(btnBorrar) btnBorrar.addEventListener('click', async ()=>{
+      if(!confirm('¿Borrar todo el catálogo cargado en este dispositivo?')) return;
+      PRODUCTOS = {};
+      await saveProductos();
+      toast('Catálogo borrado');
+      renderCatalogo();
+    });
+
+    if(conectado) cargarCategorias(p);
+  }
+
+  async function cargarCategorias(p){
+    const cont = p.querySelector('#bloque-categorias');
+    if(!cont) return;
+    try {
+      const data = await sheetsGet('action=categorias');
+      const categorias = (data && data.categorias) || [];
+
+      cont.innerHTML = `
+        <label style="margin-top:0;">Elegí una categoría</label>
+        <select id="sel-categoria-editar">
+          <option value="">Seleccionar…</option>
+          ${categorias.map(c=>`<option value="${c.categoria}">${c.categoria}</option>`).join('')}
+        </select>
+        <div id="bloque-categoria-actual"></div>
+      `;
+
+      function renderCategoriaActual(){
+        const cat = cont.querySelector('#sel-categoria-editar').value;
+        const wrap = cont.querySelector('#bloque-categoria-actual');
+        if(!cat){ wrap.innerHTML = ''; return; }
+        const c = categorias.find(x=>x.categoria===cat);
+        wrap.innerHTML = `
+          <div class="row2" style="margin-top:14px;">
+            <div>
+              <label style="margin-top:0;">% Menor</label>
+              <input type="number" id="f-cat-menor" value="${Math.round(c.margenMenor*1000)/10}" />
+            </div>
+            <div>
+              <label style="margin-top:0;">% Mayor (6+ u.)</label>
+              <input type="number" id="f-cat-mayor" value="${Math.round(c.margenMayor*1000)/10}" />
+            </div>
+          </div>
+          <button class="btn-primary" id="btn-guardar-categoria" style="margin-top:14px;">Guardar ${cat}</button>
+        `;
+        wrap.querySelector('#btn-guardar-categoria').addEventListener('click', async (ev)=>{
+          const btn = ev.currentTarget;
+          const margenMenor = (parseFloat(wrap.querySelector('#f-cat-menor').value)||0)/100;
+          const margenMayor = (parseFloat(wrap.querySelector('#f-cat-mayor').value)||0)/100;
+          setLoading(btn, true, 'Guardando…');
+          try {
+            await sheetsPost({ type:'categoria', data:{ categoria: cat, margenMenor, margenMayor } });
+            MARGENES[cat] = [margenMenor, margenMayor];
+            c.margenMenor = margenMenor; c.margenMayor = margenMayor;
+            toast(`${cat} actualizada: ${Math.round(margenMenor*100)}% menor · ${Math.round(margenMayor*100)}% mayor`);
+          } catch(e){
+            showError(e.message);
+          } finally {
+            setLoading(btn, false);
+          }
+        });
+      }
+      cont.querySelector('#sel-categoria-editar').addEventListener('change', renderCategoriaActual);
+    } catch(e){
+      cont.innerHTML = `<p class="hint">No se pudieron cargar las categorías (${e.message})</p>`;
+    }
+  }
+
+  function normHeaderCell(v){ return (v===undefined || v===null) ? '' : String(v).trim(); }
+
+  async function importarDesdeArchivo(file){
+    if(typeof XLSX === 'undefined'){
+      throw new Error('No se pudo cargar el lector de Excel (revisá tu conexión a internet e intentá de nuevo).');
+    }
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+
+    const hojaPrecios = wb.Sheets['Precios, Costos y Presupuestos'];
+    if(!hojaPrecios) throw new Error('No encontré la hoja "Precios, Costos y Presupuestos" en ese archivo.');
+    const hojaVariantes = wb.Sheets['Variantes']; // opcional
+
+    // Filas desde la 5 (index 4) de la hoja de Precios: A..L
+    const filasPrecios = XLSX.utils.sheet_to_json(hojaPrecios, { header: 1, range: 4, blankrows: false });
+
+    // Agrupar variantes por Código Base (columna B de la hoja Variantes)
+    const variantesPorBase = {};
+    if(hojaVariantes){
+      const filasVar = XLSX.utils.sheet_to_json(hojaVariantes, { header: 1, range: 4, blankrows: false });
+      filasVar.forEach(row=>{
+        const codigoVariante = normHeaderCell(row[0]);
+        const codigoBase = normHeaderCell(row[1]);
+        if(!codigoVariante || !codigoBase) return;
+        const talle = normHeaderCell(row[2]);
+        const color = normHeaderCell(row[3]);
+        (variantesPorBase[codigoBase] = variantesPorBase[codigoBase] || []).push({ codigo: codigoVariante, talle, color });
+      });
+    }
+
+    let importados = 0;
+    filasPrecios.forEach(row=>{
+      const codigoBase = normHeaderCell(row[0]);
+      const descripcion = normHeaderCell(row[1]);
+      const categoria = normHeaderCell(row[2]);
+      const costo = parseFloat(row[3]) || 0;
+      const margenMenor = parseFloat(row[4]) || 0;
+      const precioMenor = parseFloat(row[6]) || 0;
+      const margenMayor = parseFloat(row[7]) || 0;
+      const precioMayor = parseFloat(row[9]) || 0;
+      if(!codigoBase || !descripcion) return;
+
+      const variantes = (variantesPorBase[codigoBase] && variantesPorBase[codigoBase].length)
+        ? variantesPorBase[codigoBase]
+        : [{ codigo: codigoBase, talle: '', color: '' }];
+
+      PRODUCTOS[codigoBase] = { codigoBase, categoria, descripcion, costo, margenMenor, margenMayor, precioMenor, precioMayor, variantes, fecha: PRODUCTOS[codigoBase]?.fecha || todayStr() };
+      importados++;
+
+      const m = codigoBase.match(/^([A-Z]+)-(\d+)$/);
+      if(m){
+        const abbr = m[1], num = parseInt(m[2],10);
+        if(!CONTADORES[abbr] || CONTADORES[abbr] < num) CONTADORES[abbr] = num;
+      }
+    });
+
+    if(!importados) throw new Error('No encontré artículos para importar en ese archivo.');
+    await saveProductos();
+    await saveContadores();
+    toast(`Importados ${importados} artículos`);
+    root.querySelector('#importar-status') && (root.querySelector('#importar-status').textContent = `✔ Importados ${importados} artículos correctamente.`);
+  }
+
+  // ============================================================
+  // PANEL 1: ARTÍCULO NUEVO
+  // ============================================================
+  let tallesTmp = [];
+  let coloresTmp = [];
+  let articuloModo = 'crear';        // 'crear' | 'editar'
+  let productoEditando = null;       // producto cargado para editar
+
+  function renderArticulo(){
+    const p = root.querySelector('#panel-articulo');
+    p.innerHTML = `
+      <h2>Artículo</h2>
+      <div class="type-toggle" id="modo-articulo-toggle" style="margin-bottom:6px;">
+        <button data-modo="crear" class="${articuloModo==='crear'?'active':''}">Crear nuevo</button>
+        <button data-modo="editar" class="${articuloModo==='editar'?'active':''}">Editar existente</button>
+      </div>
+      <div id="bloque-modo-articulo"></div>
+    `;
+    p.querySelector('#modo-articulo-toggle').querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        articuloModo = b.dataset.modo;
+        productoEditando = null;
+        tallesTmp = []; coloresTmp = [];
+        renderArticulo();
+      });
+    });
+    if(articuloModo === 'crear') renderFormCrear(); else renderFormEditar();
+  }
+
+  function chipsUI(container, arr, soloLectura){
+    container.innerHTML = arr.map((v,i)=>`<span class="chip">${v}${soloLectura?'':`<button data-i="${i}">✕</button>`}</span>`).join('');
+    if(!soloLectura){
+      container.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
+        arr.splice(+b.dataset.i,1);
+        chipsUI(container, arr, soloLectura);
+      }));
+    }
+  }
+
+  function construirVariantesNuevas(codigoBase, talles, colores){
+    let variantes = [];
+    if(talles.length && colores.length){
+      talles.forEach(t=> colores.forEach(c=> variantes.push({
+        codigo: `${codigoBase}-${t.toUpperCase().replace(/\s+/g,'')}-${c.toUpperCase().replace(/\s+/g,'')}`,
+        talle: t, color: c
+      })));
+    } else if(talles.length){
+      talles.forEach(t=> variantes.push({ codigo: `${codigoBase}-${t.toUpperCase().replace(/\s+/g,'')}`, talle: t, color: '' }));
+    } else if(colores.length){
+      colores.forEach(c=> variantes.push({ codigo: `${codigoBase}-${c.toUpperCase().replace(/\s+/g,'')}`, talle: '', color: c }));
+    }
+    const vistos = new Set();
+    return variantes.filter(v => vistos.has(v.codigo) ? false : (vistos.add(v.codigo), true));
+  }
+
+  // ============================================================
+  // ARTÍCULO — modo CREAR
+  // ============================================================
+  function renderFormCrear(){
+    const p = root.querySelector('#bloque-modo-articulo');
+    p.innerHTML = `
+      <p class="hint">Cargá el modelo una sola vez. Si tiene varios talles y colores, el código de cada variante se arma solo.</p>
+
+      <label>Categoría</label>
+      <select id="f-categoria">
+        ${CATS.map(c=>`<option value="${c[0]}">${c[0]}</option>`).join('')}
+      </select>
+
+      <label>Descripción</label>
+      <input type="text" id="f-descripcion" placeholder="Ej: Conjunto Amelia" />
+
+      <label>Costo unitario ($)</label>
+      <input type="number" id="f-costo" placeholder="0" inputmode="decimal" />
+
+      <div class="row2">
+        <div>
+          <label>% Margen menor</label>
+          <input type="number" id="f-margen-menor" placeholder="según categoría" />
+        </div>
+        <div>
+          <label>% Margen mayor</label>
+          <input type="number" id="f-margen-mayor" placeholder="según categoría" />
+        </div>
+      </div>
+      <p class="hint" id="f-margen-hint" style="margin-top:6px;"></p>
+
+      <label>Talles (si no tiene, dejalo vacío)</label>
+      <div class="chips" id="chips-talles"></div>
+      <div class="add-chip-row">
+        <input type="text" id="input-talle" placeholder="Ej: 85, S, Único…" />
+        <button class="btn-mini" id="add-talle">+ Agregar</button>
+      </div>
+
+      <label>Colores (si no tiene, dejalo vacío)</label>
+      <div class="chips" id="chips-colores"></div>
+      <div class="add-chip-row">
+        <input type="text" id="input-color" placeholder="Ej: Negro" />
+        <button class="btn-mini" id="add-color">+ Agregar</button>
+      </div>
+
+      <button class="btn-primary" id="btn-guardar-articulo">Generar código y guardar</button>
+    `;
+
+    const catSel = p.querySelector('#f-categoria');
+    function updateMargenHint(){
+      const cat = catSel.value;
+      const m = MARGENES[cat] || [0.45,0.28];
+      p.querySelector('#f-margen-hint').innerHTML = `Por defecto para <b>${cat}</b>: ${Math.round(m[0]*100)}% menor · ${Math.round(m[1]*100)}% mayor (6+ u.)`;
+    }
+    catSel.addEventListener('change', updateMargenHint);
+    updateMargenHint();
+
+    chipsUI(p.querySelector('#chips-talles'), tallesTmp);
+    chipsUI(p.querySelector('#chips-colores'), coloresTmp);
+
+    p.querySelector('#add-talle').addEventListener('click', ()=>{
+      const inp = p.querySelector('#input-talle');
+      if(inp.value.trim()){ tallesTmp.push(inp.value.trim()); inp.value=''; chipsUI(p.querySelector('#chips-talles'), tallesTmp); }
+    });
+    p.querySelector('#add-color').addEventListener('click', ()=>{
+      const inp = p.querySelector('#input-color');
+      if(inp.value.trim()){ coloresTmp.push(inp.value.trim()); inp.value=''; chipsUI(p.querySelector('#chips-colores'), coloresTmp); }
+    });
+
+    p.querySelector('#btn-guardar-articulo').addEventListener('click', async (ev)=>{
+      const btn = ev.currentTarget;
+      const categoria = catSel.value;
+      const descripcion = p.querySelector('#f-descripcion').value.trim();
+      const costo = parseFloat(p.querySelector('#f-costo').value) || 0;
+      if(!descripcion || !costo){ toast('Falta descripción o costo'); return; }
+
+      setLoading(btn, true, 'Guardando…');
+      try {
+        const abbr = CATS.find(c=>c[0]===categoria)[1];
+        const codigoBase = nextCode(abbr);
+        await saveContadores();
+
+        const overrideMenor = p.querySelector('#f-margen-menor').value ? parseFloat(p.querySelector('#f-margen-menor').value)/100 : null;
+        const overrideMayor = p.querySelector('#f-margen-mayor').value ? parseFloat(p.querySelector('#f-margen-mayor').value)/100 : null;
+        const [defMenor, defMayor] = MARGENES[categoria] || [0.45,0.28];
+        const margenMenor = overrideMenor ?? defMenor;
+        const margenMayor = overrideMayor ?? defMayor;
+        const precioMenor = costo * (1+margenMenor);
+        const precioMayor = costo * (1+margenMayor);
+
+        let variantes = construirVariantesNuevas(codigoBase, tallesTmp, coloresTmp);
+        if(!variantes.length) variantes = [{ codigo: codigoBase, talle: '', color: '' }];
+
+        const producto = { codigoBase, categoria, descripcion, costo, margenMenor, margenMayor, precioMenor, precioMayor, variantes, fecha: todayStr() };
+
+        if(SHEETS_URL){
+          try {
+            await sheetsPost({ type: 'producto', data: { codigoBase, categoria, descripcion, costo, overrideMenor, overrideMayor, variantes } });
+            PRODUCTOS[codigoBase] = producto;
+            await saveProductos();
+            toast(`Guardado en Google Sheets: ${codigoBase} (${variantes.length} variante${variantes.length>1?'s':''})`);
+          } catch(e){
+            if(e.esValidacion){ showError(e.message); return; }
+            PRODUCTOS[codigoBase] = producto; await saveProductos();
+            PEND_PROD.push(producto); await savePendProd();
+            toast(`Sin conexión: ${codigoBase} quedó pendiente de sincronizar`);
+          }
+        } else {
+          PRODUCTOS[codigoBase] = producto; await saveProductos();
+          PEND_PROD.push(producto);
+          await savePendProd();
+          toast(`Guardado: ${codigoBase} (${variantes.length} variante${variantes.length>1?'s':''})`);
+        }
+
+        tallesTmp = []; coloresTmp = [];
+        renderArticulo();
+      } finally {
+        setLoading(btn, false);
+      }
+    });
+  }
+
+  // ============================================================
+  // ARTÍCULO — modo EDITAR
+  // ============================================================
+  function renderFormEditar(){
+    const p = root.querySelector('#bloque-modo-articulo');
+    if(!productoEditando){
+      p.innerHTML = `
+        <p class="hint">Buscá el artículo que querés modificar.</p>
+        <input type="text" id="f-buscar-editar" placeholder="Código o descripción…" />
+        <div id="resultados-busqueda-editar"></div>
+      `;
+      p.querySelector('#f-buscar-editar').addEventListener('input', (e)=>{
+        const q = e.target.value.trim().toLowerCase();
+        const cont = p.querySelector('#resultados-busqueda-editar');
+        if(!q){ cont.innerHTML=''; return; }
+        const matches = Object.values(PRODUCTOS).filter(pr =>
+          pr.codigoBase.toLowerCase().includes(q) || pr.descripcion.toLowerCase().includes(q)
+        ).slice(0,8);
+        cont.innerHTML = matches.map(m=>`
+          <div class="search-result" data-code="${m.codigoBase}">
+            <div class="sr-code">${m.codigoBase} · ${m.categoria}</div>
+            <div class="sr-desc">${m.descripcion}</div>
+          </div>`).join('') || `<p class="hint">Sin resultados.</p>`;
+        cont.querySelectorAll('.search-result').forEach(r=>{
+          r.addEventListener('click', ()=>{
+            productoEditando = PRODUCTOS[r.dataset.code];
+            tallesTmp = []; coloresTmp = [];
+            renderFormEditar();
+          });
+        });
+      });
+      return;
+    }
+
+    const pr = productoEditando;
+    p.innerHTML = `
+      <div class="selected-product" style="margin-bottom:6px;">
+        <div><div class="sp-code">${pr.codigoBase}</div>${pr.descripcion}</div>
+        <button id="cambiar-producto-editar">Cambiar</button>
+      </div>
+
+      <label>Categoría</label>
+      <select id="f-categoria">
+        ${CATS.map(c=>`<option value="${c[0]}" ${c[0]===pr.categoria?'selected':''}>${c[0]}</option>`).join('')}
+      </select>
+
+      <label>Descripción</label>
+      <input type="text" id="f-descripcion" value="${pr.descripcion}" />
+
+      <label>Costo unitario ($)</label>
+      <input type="number" id="f-costo" value="${pr.costo}" inputmode="decimal" />
+      <p class="hint" style="margin-top:6px;">El costo es único por artículo — cambiarlo acá actualiza el costo (y los precios calculados) de <b>todas</b> sus variantes de talle/color a la vez.</p>
+
+      <div class="row2">
+        <div>
+          <label>% Margen menor</label>
+          <input type="number" id="f-margen-menor" value="${Math.round(pr.margenMenor*1000)/10}" />
+        </div>
+        <div>
+          <label>% Margen mayor</label>
+          <input type="number" id="f-margen-mayor" value="${Math.round(pr.margenMayor*1000)/10}" />
+        </div>
+      </div>
+
+      <label>Variantes existentes</label>
+      <div class="chips">
+        ${pr.variantes.map(v=>`<span class="chip" style="opacity:0.7;">${[v.talle,v.color].filter(Boolean).join(' · ') || 'única'}</span>`).join('') || '<span class="hint">Ninguna todavía</span>'}
+      </div>
+
+      <label style="margin-top:20px;">Agregar talles nuevos</label>
+      <div class="chips" id="chips-talles"></div>
+      <div class="add-chip-row">
+        <input type="text" id="input-talle" placeholder="Ej: 100" />
+        <button class="btn-mini" id="add-talle">+ Agregar</button>
+      </div>
+
+      <label>Agregar colores nuevos</label>
+      <div class="chips" id="chips-colores"></div>
+      <div class="add-chip-row">
+        <input type="text" id="input-color" placeholder="Ej: Rojo" />
+        <button class="btn-mini" id="add-color">+ Agregar</button>
+      </div>
+      <p class="hint" style="margin-top:8px;">Si cargás talles y/o colores nuevos, se van a sumar como variantes adicionales — las que ya existen no se tocan.</p>
+
+      <button class="btn-primary" id="btn-guardar-cambios">Guardar cambios</button>
+    `;
+
+    p.querySelector('#cambiar-producto-editar').addEventListener('click', ()=>{
+      productoEditando = null; renderFormEditar();
+    });
+
+    chipsUI(p.querySelector('#chips-talles'), tallesTmp);
+    chipsUI(p.querySelector('#chips-colores'), coloresTmp);
+    p.querySelector('#add-talle').addEventListener('click', ()=>{
+      const inp = p.querySelector('#input-talle');
+      if(inp.value.trim()){ tallesTmp.push(inp.value.trim()); inp.value=''; chipsUI(p.querySelector('#chips-talles'), tallesTmp); }
+    });
+    p.querySelector('#add-color').addEventListener('click', ()=>{
+      const inp = p.querySelector('#input-color');
+      if(inp.value.trim()){ coloresTmp.push(inp.value.trim()); inp.value=''; chipsUI(p.querySelector('#chips-colores'), coloresTmp); }
+    });
+
+    p.querySelector('#btn-guardar-cambios').addEventListener('click', async (ev)=>{
+      const btn = ev.currentTarget;
+      const categoria = p.querySelector('#f-categoria').value;
+      const descripcion = p.querySelector('#f-descripcion').value.trim();
+      const costo = parseFloat(p.querySelector('#f-costo').value) || 0;
+      const margenMenor = (parseFloat(p.querySelector('#f-margen-menor').value) || 0) / 100;
+      const margenMayor = (parseFloat(p.querySelector('#f-margen-mayor').value) || 0) / 100;
+      if(!descripcion || !costo){ toast('Falta descripción o costo'); return; }
+
+      const variantesNuevas = construirVariantesNuevas(pr.codigoBase, tallesTmp, coloresTmp)
+        .filter(v => !pr.variantes.some(ex => ex.codigo === v.codigo));
+
+      setLoading(btn, true, 'Guardando cambios…');
+      try {
+        const actualizado = {
+          ...pr, categoria, descripcion, costo, margenMenor, margenMayor,
+          precioMenor: costo*(1+margenMenor), precioMayor: costo*(1+margenMayor),
+          variantes: [...pr.variantes, ...variantesNuevas]
+        };
+        if(SHEETS_URL){
+          try {
+            await sheetsPost({ type: 'producto_actualizar', data: {
+              codigoBase: pr.codigoBase, categoria, descripcion, costo,
+              overrideMenor: margenMenor, overrideMayor: margenMayor, variantesNuevas
+            }});
+            PRODUCTOS[pr.codigoBase] = actualizado;
+            await saveProductos();
+            toast(`Actualizado: ${pr.codigoBase}${variantesNuevas.length ? ` (+${variantesNuevas.length} variante${variantesNuevas.length>1?'s':''})` : ''}`);
+          } catch(e){
+            if(e.esValidacion){ showError(e.message); return; }
+            toast('Sin conexión: no se pudo actualizar, probá de nuevo en un rato');
+            return;
+          }
+        } else {
+          PRODUCTOS[pr.codigoBase] = actualizado;
+          await saveProductos();
+          toast('Actualizado en este dispositivo (sin conexión a Sheets)');
+        }
+        tallesTmp = []; coloresTmp = [];
+        productoEditando = null;
+        renderArticulo();
+      } finally {
+        setLoading(btn, false);
+      }
+    });
+  }
+
+  // ============================================================
+  // PANEL 2: MOVIMIENTO
+  // ============================================================
+  let movTipo = 'Venta';
+  let movMedioPago = 'Efectivo';
+  let AJUSTES = [
+    { nombre: 'Recargo Tarjeta Crédito', porcentaje: 6, signo: 1, activo: false },
+    { nombre: 'Recargo Tarjeta Débito', porcentaje: 3, signo: 1, activo: false },
+    { nombre: 'IVA', porcentaje: 21, signo: 1, activo: false },
+    { nombre: 'IIBB', porcentaje: 3, signo: -1, activo: false },
+    { nombre: 'Descuento', porcentaje: 10, signo: -1, activo: false },
+  ];
+
+  function renderMovimiento(){
+    const p = root.querySelector('#panel-movimiento');
+    productoSeleccionado = null;
+    talleColorSeleccion = null;
+    p.innerHTML = `
+      <h2>Nuevo movimiento</h2>
+      <p class="hint">Elegí el tipo, buscá el artículo y completá cantidad y precio.</p>
+
+      <label>Fecha</label>
+      <input type="date" id="f-fecha" value="${todayStr()}" />
+
+      <label>Tipo de movimiento</label>
+      <div class="type-toggle" id="tipo-toggle">
+        <button data-t="Compra">Compra</button>
+        <button data-t="Venta" class="active">Venta</button>
+        <button data-t="Gasto">Gasto</button>
+      </div>
+
+      <div id="bloque-articulo"></div>
+      <div id="bloque-gasto" style="display:none;">
+        <label>Descripción del gasto</label>
+        <input type="text" id="f-gasto-desc" placeholder="Ej: Pago de luz" />
+      </div>
+
+      <label>Cantidad</label>
+      <input type="number" id="f-cantidad" value="1" min="1" />
+
+      <label>Monto base ($)</label>
+      <input type="number" id="f-monto" placeholder="0" inputmode="decimal" />
+      <p class="suggested-price" id="precio-sugerido"></p>
+
+      <label style="margin-top:20px;">Ajustes (IVA, IIBB, recargos de tarjeta…)</label>
+      <div id="ajustes-lista"></div>
+      <div class="add-chip-row">
+        <input type="text" id="input-ajuste-nombre" placeholder="Nombre (ej: Recargo Naranja)" />
+        <input type="number" id="input-ajuste-pct" placeholder="%" style="max-width:64px; flex:none;" />
+        <button class="btn-mini" id="add-ajuste">+</button>
+      </div>
+      <p class="suggested-price" id="monto-final-hint" style="margin-top:10px;"></p>
+
+      <label>Medio de pago</label>
+      <div class="pay-toggle" id="pago-toggle">
+        <button data-m="Efectivo" class="active">Efectivo</button>
+        <button data-m="Transferencia">Transferencia</button>
+        <button data-m="Debito">Débito/Créd.</button>
+      </div>
+
+      <button class="btn-primary" id="btn-guardar-mov">Agregar a la cola</button>
+    `;
+
+    root.querySelector('#tipo-toggle').querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        movTipo = b.dataset.t;
+        root.querySelector('#tipo-toggle').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        p.querySelector('#bloque-gasto').style.display = movTipo==='Gasto' ? 'block' : 'none';
+        p.querySelector('#bloque-articulo').style.display = movTipo==='Gasto' ? 'none' : 'block';
+        updatePrecioSugerido();
+      });
+    });
+    root.querySelector('#pago-toggle').querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        movMedioPago = b.dataset.m;
+        root.querySelector('#pago-toggle').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+      });
+    });
+
+    renderBloqueArticulo();
+    renderAjustes(p);
+
+    p.querySelector('#f-cantidad').addEventListener('input', updatePrecioSugerido);
+    p.querySelector('#f-monto').addEventListener('input', ()=> actualizarMontoFinalHint(p));
+
+    p.querySelector('#btn-guardar-mov').addEventListener('click', async (ev)=>{
+      const btn = ev.currentTarget;
+      const fecha = p.querySelector('#f-fecha').value;
+      const cantidad = parseFloat(p.querySelector('#f-cantidad').value) || 0;
+      const montoBase = parseFloat(p.querySelector('#f-monto').value) || 0;
+      if(!cantidad || !montoBase){ toast('Falta cantidad o monto'); return; }
+      const monto = calcularMontoFinal(montoBase);
+
+      let registro = { fecha, movimiento: movTipo, cantidad,
+        efectivo: movMedioPago==='Efectivo'?monto:0,
+        transferencia: movMedioPago==='Transferencia'?monto:0,
+        debito: movMedioPago==='Debito'?monto:0 };
+
+      if(movTipo==='Gasto'){
+        const desc = p.querySelector('#f-gasto-desc').value.trim();
+        if(!desc){ toast('Falta la descripción del gasto'); return; }
+        registro.codigo = ''; registro.descripcion = desc; registro.categoria = ''; registro.talle=''; registro.color='';
+      } else {
+        if(!productoSeleccionado){ toast('Elegí un artículo'); return; }
+        const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
+        registro.codigo = variante.codigo;
+        registro.descripcion = productoSeleccionado.descripcion;
+        registro.categoria = productoSeleccionado.categoria;
+        registro.talle = variante.talle;
+        registro.color = variante.color;
+      }
+      const total = movMedioPago ? (registro.efectivo + registro.transferencia + registro.debito) : monto;
+      const signo = (movTipo === 'Compra' || movTipo === 'Gasto') ? -1 : 1;
+      const fila = [
+        registro.fecha, registro.codigo, registro.descripcion, registro.categoria, registro.movimiento,
+        registro.cantidad, signo * Math.abs(total),
+        signo * Math.abs(registro.efectivo), signo * Math.abs(registro.transferencia), signo * Math.abs(registro.debito),
+        registro.color, '', registro.talle
+      ];
+
+      setLoading(btn, true, movTipo === 'Venta' ? 'Verificando stock…' : 'Guardando…');
+      try {
+        if(SHEETS_URL){
+          try {
+            await sheetsPost({ type: 'movimiento', data: { fila } });
+            toast('Movimiento guardado en Google Sheets');
+          } catch(e){
+            if(e.esValidacion){
+              showError(e.message);
+              return; // no se guarda ni se encola: hay que corregir (ej. no hay stock)
+            }
+            PEND_MOV.push(registro); await savePendMov();
+            toast('Sin conexión: quedó pendiente de sincronizar');
+          }
+        } else {
+          PEND_MOV.push(registro);
+          await savePendMov();
+          toast('Movimiento agregado a la cola');
+        }
+        renderMovimiento();
+      } finally {
+        setLoading(btn, false);
+      }
+    });
+
+    updatePrecioSugerido();
+  }
+
+  function renderBloqueArticulo(){
+    const p = root.querySelector('#panel-movimiento');
+    const bloque = p.querySelector('#bloque-articulo');
+    bloque.innerHTML = `
+      <label>Buscar artículo</label>
+      <input type="text" id="f-buscar" placeholder="Código o descripción…" />
+      <div id="resultados-busqueda"></div>
+      <div id="seleccion-producto"></div>
+      <div id="seleccion-variante"></div>
+    `;
+    bloque.querySelector('#f-buscar').addEventListener('input', (e)=>{
+      const q = e.target.value.trim().toLowerCase();
+      const cont = bloque.querySelector('#resultados-busqueda');
+      if(!q){ cont.innerHTML=''; return; }
+      const matches = Object.values(PRODUCTOS).filter(pr =>
+        pr.codigoBase.toLowerCase().includes(q) || pr.descripcion.toLowerCase().includes(q)
+      ).slice(0,8);
+      cont.innerHTML = matches.map(m=>`
+        <div class="search-result" data-code="${m.codigoBase}">
+          <div class="sr-code">${m.codigoBase} · ${m.categoria}</div>
+          <div class="sr-desc">${m.descripcion}</div>
+        </div>`).join('') || `<p class="hint">Sin resultados. ¿Lo cargaste en "Artículo nuevo"?</p>`;
+      cont.querySelectorAll('.search-result').forEach(r=>{
+        r.addEventListener('click', ()=>{
+          productoSeleccionado = PRODUCTOS[r.dataset.code];
+          talleColorSeleccion = null;
+          cont.innerHTML='';
+          bloque.querySelector('#f-buscar').value='';
+          renderSeleccion();
+          updatePrecioSugerido();
+        });
+      });
+    });
+  }
+
+  function renderSeleccion(){
+    const bloque = root.querySelector('#bloque-articulo');
+    const contP = bloque.querySelector('#seleccion-producto');
+    const contV = bloque.querySelector('#seleccion-variante');
+    if(!productoSeleccionado){ contP.innerHTML=''; contV.innerHTML=''; return; }
+    contP.innerHTML = `
+      <div class="selected-product">
+        <div><div class="sp-code">${productoSeleccionado.codigoBase}</div>${productoSeleccionado.descripcion}</div>
+        <button id="quitar-producto">Cambiar</button>
+      </div>`;
+    contP.querySelector('#quitar-producto').addEventListener('click', ()=>{
+      productoSeleccionado = null; talleColorSeleccion = null;
+      renderSeleccion(); updatePrecioSugerido();
+    });
+    const variantes = productoSeleccionado.variantes;
+    if(variantes.length > 1){
+      contV.innerHTML = `
+        <label>Talle / Color</label>
+        <select id="sel-variante">
+          <option value="">Elegir…</option>
+          ${variantes.map((v,i)=>`<option value="${i}">${[v.talle,v.color].filter(Boolean).join(' · ') || v.codigo}</option>`).join('')}
+        </select>`;
+      contV.querySelector('#sel-variante').addEventListener('change', (e)=>{
+        talleColorSeleccion = e.target.value!=='' ? variantes[+e.target.value] : null;
+        updatePrecioSugerido();
+      });
+    } else {
+      talleColorSeleccion = variantes[0];
+      contV.innerHTML = '';
+    }
+  }
+
+  function updatePrecioSugerido(){
+    const p = root.querySelector('#panel-movimiento');
+    if(!p) return;
+    const hint = p.querySelector('#precio-sugerido');
+    if(!hint) return;
+    if(movTipo==='Gasto' || !productoSeleccionado){ hint.textContent=''; return; }
+    const cant = parseFloat(p.querySelector('#f-cantidad').value) || 1;
+    if(movTipo==='Compra'){
+      hint.innerHTML = `Costo de referencia: <b>${fmtMoney(productoSeleccionado.costo)}</b> por unidad`;
+    } else {
+      const esMayor = cant >= UMBRAL_MAYOR;
+      const precioUnit = esMayor ? productoSeleccionado.precioMayor : productoSeleccionado.precioMenor;
+      hint.innerHTML = `Precio sugerido (${esMayor ? 'por mayor, 6+' : 'por menor'}): <b>${fmtMoney(precioUnit)}</b> c/u · Total: <b>${fmtMoney(precioUnit*cant)}</b>`;
+    }
+  }
+
+  function renderAjustes(p){
+    const cont = p.querySelector('#ajustes-lista');
+    if(!cont) return;
+    cont.innerHTML = AJUSTES.map((a,i)=>`
+      <div class="ajuste-row" data-i="${i}">
+        <input type="checkbox" class="ajuste-check" data-i="${i}" ${a.activo?'checked':''}>
+        <span class="ajuste-nombre">${a.nombre}</span>
+        <button type="button" class="ajuste-signo" data-i="${i}">${a.signo>0?'+':'−'}</button>
+        <input type="number" class="ajuste-pct" data-i="${i}" value="${a.porcentaje}">
+        <span>%</span>
+        ${a.personalizado ? `<button type="button" class="ajuste-borrar" data-i="${i}">✕</button>` : ''}
+      </div>
+    `).join('');
+
+    cont.querySelectorAll('.ajuste-check').forEach(chk=>chk.addEventListener('change', ()=>{
+      AJUSTES[+chk.dataset.i].activo = chk.checked;
+      actualizarMontoFinalHint(p);
+    }));
+    cont.querySelectorAll('.ajuste-signo').forEach(btn=>btn.addEventListener('click', ()=>{
+      const a = AJUSTES[+btn.dataset.i];
+      a.signo = a.signo > 0 ? -1 : 1;
+      renderAjustes(p);
+      actualizarMontoFinalHint(p);
+    }));
+    cont.querySelectorAll('.ajuste-pct').forEach(inp=>inp.addEventListener('input', ()=>{
+      AJUSTES[+inp.dataset.i].porcentaje = parseFloat(inp.value) || 0;
+      actualizarMontoFinalHint(p);
+    }));
+    cont.querySelectorAll('.ajuste-borrar').forEach(btn=>btn.addEventListener('click', ()=>{
+      AJUSTES.splice(+btn.dataset.i, 1);
+      renderAjustes(p);
+      actualizarMontoFinalHint(p);
+    }));
+
+    p.querySelector('#add-ajuste').onclick = ()=>{
+      const nombre = p.querySelector('#input-ajuste-nombre').value.trim();
+      const pct = parseFloat(p.querySelector('#input-ajuste-pct').value) || 0;
+      if(!nombre){ toast('Ponele un nombre al ajuste'); return; }
+      AJUSTES.push({ nombre, porcentaje: pct, signo: 1, activo: true, personalizado: true });
+      p.querySelector('#input-ajuste-nombre').value = '';
+      p.querySelector('#input-ajuste-pct').value = '';
+      renderAjustes(p);
+      actualizarMontoFinalHint(p);
+    };
+
+    actualizarMontoFinalHint(p);
+  }
+
+  function calcularMontoFinal(montoBase){
+    let total = montoBase;
+    AJUSTES.filter(a=>a.activo).forEach(a=>{
+      total = total * (1 + (a.signo * a.porcentaje / 100));
+    });
+    return total;
+  }
+
+  function actualizarMontoFinalHint(p){
+    const hint = p.querySelector('#monto-final-hint');
+    if(!hint) return;
+    const base = parseFloat(p.querySelector('#f-monto').value) || 0;
+    const activos = AJUSTES.filter(a=>a.activo);
+    if(!base || !activos.length){ hint.textContent=''; return; }
+    const final = calcularMontoFinal(base);
+    hint.innerHTML = `Monto final a registrar: <b>${fmtMoney(final)}</b> (base ${fmtMoney(base)} ${activos.map(a=>`${a.signo>0?'+':'−'}${a.porcentaje}% ${a.nombre}`).join(', ')})`;
+  }
+
+  // ============================================================
+  // PANEL 3: EXPORTAR
+  // ============================================================
+  function renderExportar(){
+    const p = root.querySelector('#panel-exportar');
+    const conectado = !!SHEETS_URL;
+    p.innerHTML = `
+      <h2>${conectado ? 'Pendientes de sincronizar' : 'Exportar a Excel'}</h2>
+      <p class="hint">${conectado
+        ? 'Esto solo se llena si algún movimiento o artículo se guardó sin conexión a internet. Tocá "Reintentar" para mandarlo a Google Sheets.'
+        : 'Copiá cada bloque y pegalo (Ctrl+V) en la hoja correspondiente del Excel. Después tocá "Vaciar cola" para no exportarlo dos veces.'}</p>
+
+      ${conectado ? `<button class="btn-primary" id="btn-reintentar">Reintentar sincronización (${PEND_MOV.length + PEND_PROD.length})</button>` : ''}
+
+      <div class="section-label">Movimientos pendientes (${PEND_MOV.length}) → hoja "Registro Compras y Ventas"</div>
+      <textarea class="copybox" id="box-mov" readonly></textarea>
+      <button class="btn-secondary" id="copiar-mov">Copiar movimientos</button>
+      <button class="btn-secondary" id="vaciar-mov">Vaciar cola de movimientos</button>
+
+      <div class="section-label">Artículos nuevos (${PEND_PROD.length}) → hojas "Precios, Costos y Presupuestos" y "Variantes"</div>
+      <textarea class="copybox" id="box-prod-precios" readonly></textarea>
+      <p class="hint" style="margin:8px 0 0;">↑ Pegar en "Precios, Costos y Presupuestos" (columnas A-D)</p>
+      <textarea class="copybox" id="box-prod-variantes" style="margin-top:14px;" readonly></textarea>
+      <p class="hint" style="margin:8px 0 0;">↑ Pegar en "Variantes" (columna A)</p>
+      <button class="btn-secondary" id="copiar-prod">Copiar ambos bloques</button>
+      <button class="btn-secondary" id="vaciar-prod">Vaciar cola de artículos</button>
+    `;
+
+    const btnReintentar = p.querySelector('#btn-reintentar');
+    if(btnReintentar) btnReintentar.addEventListener('click', async ()=>{
+      let ok = 0, fail = 0;
+      for(const registro of [...PEND_MOV]){
+        const total = registro.efectivo + registro.transferencia + registro.debito;
+        const signo = (registro.movimiento === 'Compra' || registro.movimiento === 'Gasto') ? -1 : 1;
+        const fila = [registro.fecha, registro.codigo, registro.descripcion, registro.categoria, registro.movimiento,
+          registro.cantidad, signo*Math.abs(total), signo*Math.abs(registro.efectivo), signo*Math.abs(registro.transferencia),
+          signo*Math.abs(registro.debito), registro.color, '', registro.talle];
+        try { await sheetsPost({ type:'movimiento', data:{ fila } }); PEND_MOV.splice(PEND_MOV.indexOf(registro),1); ok++; }
+        catch(e){ fail++; }
+      }
+      for(const producto of [...PEND_PROD]){
+        try {
+          await sheetsPost({ type:'producto', data: producto });
+          PEND_PROD.splice(PEND_PROD.indexOf(producto),1); ok++;
+        } catch(e){ fail++; }
+      }
+      await savePendMov(); await savePendProd();
+      toast(fail ? `Sincronizados ${ok}, fallaron ${fail}` : `Todo sincronizado (${ok})`);
+      renderExportar();
+    });
+
+    const movTsv = PEND_MOV.map(m =>
+      [m.fecha, m.codigo, m.descripcion, m.categoria, m.movimiento, m.cantidad, m.movimiento==='Compra' ? -Math.abs(m.efectivo+m.transferencia+m.debito) : (m.efectivo+m.transferencia+m.debito), m.efectivo||'', m.transferencia||'', m.debito||'', m.color||'', '', m.talle||''].join('\t')
+    ).join('\n');
+    p.querySelector('#box-mov').value = movTsv;
+
+    const precioTsv = PEND_PROD.map(pr => [pr.codigoBase, pr.descripcion, pr.categoria, pr.costo].join('\t')).join('\n');
+    p.querySelector('#box-prod-precios').value = precioTsv;
+    const variantesTsv = PEND_PROD.flatMap(pr => pr.variantes.map(v=>v.codigo)).join('\n');
+    p.querySelector('#box-prod-variantes').value = variantesTsv;
+
+    p.querySelector('#copiar-mov').addEventListener('click', ()=>{
+      navigator.clipboard.writeText(movTsv).then(()=>toast('Movimientos copiados'));
+    });
+    p.querySelector('#copiar-prod').addEventListener('click', ()=>{
+      navigator.clipboard.writeText(precioTsv + '\n\n---VARIANTES---\n' + variantesTsv).then(()=>toast('Artículos copiados'));
+    });
+    p.querySelector('#vaciar-mov').addEventListener('click', async ()=>{
+      if(!PEND_MOV.length) return;
+      PEND_MOV = []; await savePendMov(); toast('Cola de movimientos vacía'); renderExportar();
+    });
+    p.querySelector('#vaciar-prod').addEventListener('click', async ()=>{
+      if(!PEND_PROD.length) return;
+      PEND_PROD = []; await savePendProd(); toast('Cola de artículos vacía'); renderExportar();
+    });
+  }
+
+  // ---------- init ----------
+  initErrorOverlay();
+  loadAll().then(async ()=>{
+    renderArticulo();
+    if(SHEETS_URL){
+      await sincronizarCatalogoDesdeSheets(true);
+    } else if(Object.keys(PRODUCTOS).length === 0){
+      root.querySelector('[data-tab="catalogo"]').click();
+    }
+  });
+})();
+</script>
