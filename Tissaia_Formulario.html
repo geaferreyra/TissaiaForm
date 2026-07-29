@@ -309,20 +309,25 @@
     PEND_MOV    = await safeGet('pendientes_movimientos', []);
     PEND_PROD   = await safeGet('pendientes_productos', []);
     SHEETS_URL  = await safeGet('sheets_url', '');
+    const margenesGuardados = await safeGet('margenes', null);
+    if(margenesGuardados) Object.assign(MARGENES, margenesGuardados);
   }
   async function saveProductos(){ return safeSet('productos', PRODUCTOS); }
   async function saveContadores(){ return safeSet('contadores', CONTADORES); }
   async function savePendMov(){ return safeSet('pendientes_movimientos', PEND_MOV); }
   async function savePendProd(){ return safeSet('pendientes_productos', PEND_PROD); }
   async function saveSheetsUrl(){ return safeSet('sheets_url', SHEETS_URL); }
+  async function saveMargenes(){ return safeSet('margenes', MARGENES); }
 
   // ---------- Conexión con Google Sheets (Apps Script) ----------
   let SHEETS_URL = '';
 
   async function sheetsGet(params){
     if(!SHEETS_URL) return null;
-    const url = SHEETS_URL + (SHEETS_URL.includes('?') ? '&' : '?') + params;
-    const res = await fetch(url);
+    // Cache-busting: Chrome (y a veces Google) cachean el GET porque la URL es siempre igual.
+    // Sin esto, "Sincronizar" puede devolver una respuesta vieja aunque la planilla ya haya cambiado.
+    const url = SHEETS_URL + (SHEETS_URL.includes('?') ? '&' : '?') + params + '&_=' + Date.now();
+    const res = await fetch(url, { cache: 'no-store' });
     if(!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }
@@ -351,6 +356,17 @@
           if(!CONTADORES[abbr] || CONTADORES[abbr] < data.contadores[abbr]) CONTADORES[abbr] = data.contadores[abbr];
         });
         await saveProductos(); await saveContadores();
+
+        // Traer también los % de margen por categoría vigentes en la planilla
+        // (si los cambiaste directo en Sheets, sin esto la app seguía usando los valores viejos)
+        try {
+          const catData = await sheetsGet('action=categorias');
+          (catData && catData.categorias || []).forEach(c=>{
+            MARGENES[c.categoria] = [c.margenMenor, c.margenMayor];
+          });
+          await saveMargenes();
+        } catch(e){ /* si esto falla no bloqueamos la sincronizacion del catalogo */ }
+
         if(!silencioso) toast('Catálogo sincronizado con Google Sheets');
         return true;
       }
@@ -542,6 +558,7 @@
           try {
             await sheetsPost({ type:'categoria', data:{ categoria: cat, margenMenor, margenMayor } });
             MARGENES[cat] = [margenMenor, margenMayor];
+            await saveMargenes();
             c.margenMenor = margenMenor; c.margenMayor = margenMayor;
             toast(`${cat} actualizada: ${Math.round(margenMenor*100)}% menor · ${Math.round(margenMayor*100)}% mayor`);
           } catch(e){
@@ -649,6 +666,27 @@
     if(articuloModo === 'crear') renderFormCrear(); else renderFormEditar();
   }
 
+  const UNIDADES_COSTO = { "1": "por unidad", "6": "la media docena", "12": "la docena" };
+
+  function costoUnitarioDesde(p, inputId, selectId){
+    const monto = parseFloat(p.querySelector('#'+inputId).value) || 0;
+    const divisor = parseFloat(p.querySelector('#'+selectId).value) || 1;
+    return monto / divisor;
+  }
+
+  function conectarCostoUnidad(p, inputId, selectId, hintId){
+    function actualizar(){
+      const monto = parseFloat(p.querySelector('#'+inputId).value) || 0;
+      const divisor = parseFloat(p.querySelector('#'+selectId).value) || 1;
+      const hint = p.querySelector('#'+hintId);
+      if(!monto || divisor === 1){ hint.textContent = ''; return; }
+      hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
+    }
+    p.querySelector('#'+inputId).addEventListener('input', actualizar);
+    p.querySelector('#'+selectId).addEventListener('change', actualizar);
+    actualizar();
+  }
+
   function chipsUI(container, arr, soloLectura){
     container.innerHTML = arr.map((v,i)=>`<span class="chip">${v}${soloLectura?'':`<button data-i="${i}">✕</button>`}</span>`).join('');
     if(!soloLectura){
@@ -691,8 +729,16 @@
       <label>Descripción</label>
       <input type="text" id="f-descripcion" placeholder="Ej: Conjunto Amelia" />
 
-      <label>Costo unitario ($)</label>
-      <input type="number" id="f-costo" placeholder="0" inputmode="decimal" />
+      <label>Costo</label>
+      <div class="row2">
+        <input type="number" id="f-costo" placeholder="0" inputmode="decimal" />
+        <select id="f-costo-unidad">
+          <option value="1">Por unidad</option>
+          <option value="6">La media docena</option>
+          <option value="12">La docena</option>
+        </select>
+      </div>
+      <p class="hint" id="f-costo-hint" style="margin-top:6px;"></p>
 
       <div class="row2">
         <div>
@@ -731,6 +777,7 @@
     }
     catSel.addEventListener('change', updateMargenHint);
     updateMargenHint();
+    conectarCostoUnidad(p, 'f-costo', 'f-costo-unidad', 'f-costo-hint');
 
     chipsUI(p.querySelector('#chips-talles'), tallesTmp);
     chipsUI(p.querySelector('#chips-colores'), coloresTmp);
@@ -748,7 +795,7 @@
       const btn = ev.currentTarget;
       const categoria = catSel.value;
       const descripcion = p.querySelector('#f-descripcion').value.trim();
-      const costo = parseFloat(p.querySelector('#f-costo').value) || 0;
+      const costo = costoUnitarioDesde(p, 'f-costo', 'f-costo-unidad');
       if(!descripcion || !costo){ toast('Falta descripción o costo'); return; }
 
       setLoading(btn, true, 'Guardando…');
@@ -846,8 +893,16 @@
       <label>Descripción</label>
       <input type="text" id="f-descripcion" value="${pr.descripcion}" />
 
-      <label>Costo unitario ($)</label>
-      <input type="number" id="f-costo" value="${pr.costo}" inputmode="decimal" />
+      <label>Costo</label>
+      <div class="row2">
+        <input type="number" id="f-costo" value="${pr.costo}" inputmode="decimal" />
+        <select id="f-costo-unidad">
+          <option value="1">Por unidad</option>
+          <option value="6">La media docena</option>
+          <option value="12">La docena</option>
+        </select>
+      </div>
+      <p class="hint" id="f-costo-hint" style="margin-top:6px;"></p>
       <p class="hint" style="margin-top:6px;">El costo es único por artículo — cambiarlo acá actualiza el costo (y los precios calculados) de <b>todas</b> sus variantes de talle/color a la vez.</p>
 
       <div class="row2">
@@ -887,6 +942,7 @@
     p.querySelector('#cambiar-producto-editar').addEventListener('click', ()=>{
       productoEditando = null; renderFormEditar();
     });
+    conectarCostoUnidad(p, 'f-costo', 'f-costo-unidad', 'f-costo-hint');
 
     chipsUI(p.querySelector('#chips-talles'), tallesTmp);
     chipsUI(p.querySelector('#chips-colores'), coloresTmp);
@@ -903,7 +959,7 @@
       const btn = ev.currentTarget;
       const categoria = p.querySelector('#f-categoria').value;
       const descripcion = p.querySelector('#f-descripcion').value.trim();
-      const costo = parseFloat(p.querySelector('#f-costo').value) || 0;
+      const costo = costoUnitarioDesde(p, 'f-costo', 'f-costo-unidad');
       const margenMenor = (parseFloat(p.querySelector('#f-margen-menor').value) || 0) / 100;
       const margenMayor = (parseFloat(p.querySelector('#f-margen-mayor').value) || 0) / 100;
       if(!descripcion || !costo){ toast('Falta descripción o costo'); return; }
@@ -951,6 +1007,7 @@
   // ============================================================
   let movTipo = 'Venta';
   let movMedioPago = 'Efectivo';
+  let carritoTmp = [];
   let AJUSTES = [
     { nombre: 'Recargo Tarjeta Crédito', porcentaje: 6, signo: 1, activo: false },
     { nombre: 'Recargo Tarjeta Débito', porcentaje: 3, signo: 1, activo: false },
@@ -959,13 +1016,17 @@
     { nombre: 'Descuento', porcentaje: 10, signo: -1, activo: false },
   ];
 
+  function textoBoton(){
+    return movTipo === 'Venta' ? 'Guardar venta' : movTipo === 'Compra' ? 'Guardar compra' : 'Guardar gasto';
+  }
+
   function renderMovimiento(){
     const p = root.querySelector('#panel-movimiento');
     productoSeleccionado = null;
     talleColorSeleccion = null;
     p.innerHTML = `
       <h2>Nuevo movimiento</h2>
-      <p class="hint">Elegí el tipo, buscá el artículo y completá cantidad y precio.</p>
+      <p class="hint">Elegí el tipo, agregá uno o más artículos, y guardá todo junto.</p>
 
       <label>Fecha</label>
       <input type="date" id="f-fecha" value="${todayStr()}" />
@@ -977,18 +1038,38 @@
         <button data-t="Gasto">Gasto</button>
       </div>
 
-      <div id="bloque-articulo"></div>
       <div id="bloque-gasto" style="display:none;">
         <label>Descripción del gasto</label>
         <input type="text" id="f-gasto-desc" placeholder="Ej: Pago de luz" />
+        <label>Monto ($)</label>
+        <input type="number" id="f-gasto-monto" placeholder="0" inputmode="decimal" />
       </div>
 
-      <label>Cantidad</label>
-      <input type="number" id="f-cantidad" value="1" min="1" />
+      <div id="bloque-carrito">
+        <div id="bloque-articulo"></div>
 
-      <label>Monto base ($)</label>
-      <input type="number" id="f-monto" placeholder="0" inputmode="decimal" />
-      <p class="suggested-price" id="precio-sugerido"></p>
+        <label>Cantidad</label>
+        <input type="number" id="f-cantidad" value="1" min="1" />
+
+        <p class="suggested-price" id="precio-sugerido"></p>
+        <label id="label-precio-unitario">Precio unitario ($)</label>
+        <div class="row2">
+          <input type="number" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
+          <select id="f-precio-unidad" style="display:none;">
+            <option value="1">Por unidad</option>
+            <option value="6">La media docena</option>
+            <option value="12">La docena</option>
+          </select>
+        </div>
+        <p class="hint" id="f-precio-unidad-hint" style="margin-top:6px;"></p>
+        <p class="suggested-price" id="ganancia-hint"></p>
+
+        <button class="btn-secondary" type="button" id="btn-agregar-linea">+ Agregar artículo</button>
+
+        <div class="section-label" style="margin-top:22px;">Artículos en esta operación</div>
+        <div id="carrito-lista"></div>
+        <div id="totales-carrito"></div>
+      </div>
 
       <label style="margin-top:20px;">Ajustes (IVA, IIBB, recargos de tarjeta…)</label>
       <div id="ajustes-lista"></div>
@@ -997,7 +1078,6 @@
         <input type="number" id="input-ajuste-pct" placeholder="%" style="max-width:64px; flex:none;" />
         <button class="btn-mini" id="add-ajuste">+</button>
       </div>
-      <p class="suggested-price" id="monto-final-hint" style="margin-top:10px;"></p>
 
       <label>Medio de pago</label>
       <div class="pay-toggle" id="pago-toggle">
@@ -1006,16 +1086,29 @@
         <button data-m="Debito">Débito/Créd.</button>
       </div>
 
-      <button class="btn-primary" id="btn-guardar-mov">Agregar a la cola</button>
+      <button class="btn-primary" id="btn-guardar-mov">${textoBoton()}</button>
     `;
+
+    function actualizarVisibilidad(){
+      const esGasto = movTipo === 'Gasto';
+      p.querySelector('#bloque-gasto').style.display = esGasto ? 'block' : 'none';
+      p.querySelector('#bloque-carrito').style.display = esGasto ? 'none' : 'block';
+      p.querySelector('#label-precio-unitario').textContent = movTipo === 'Compra' ? 'Costo' : 'Precio unitario ($)';
+      p.querySelector('#f-precio-unidad').style.display = movTipo === 'Compra' ? 'block' : 'none';
+      if(movTipo !== 'Compra') p.querySelector('#f-precio-unidad').value = '1';
+      p.querySelector('#f-precio-unidad-hint').textContent = '';
+      p.querySelector('#btn-guardar-mov').textContent = textoBoton();
+    }
+    actualizarVisibilidad();
 
     root.querySelector('#tipo-toggle').querySelectorAll('button').forEach(b=>{
       b.addEventListener('click', ()=>{
+        if(b.dataset.t !== movTipo) carritoTmp = []; // no mezclar articulos de venta con los de compra
         movTipo = b.dataset.t;
         root.querySelector('#tipo-toggle').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
         b.classList.add('active');
-        p.querySelector('#bloque-gasto').style.display = movTipo==='Gasto' ? 'block' : 'none';
-        p.querySelector('#bloque-articulo').style.display = movTipo==='Gasto' ? 'none' : 'block';
+        actualizarVisibilidad();
+        renderCarritoLista(p);
         updatePrecioSugerido();
       });
     });
@@ -1029,64 +1122,133 @@
 
     renderBloqueArticulo();
     renderAjustes(p);
+    renderCarritoLista(p);
 
     p.querySelector('#f-cantidad').addEventListener('input', updatePrecioSugerido);
-    p.querySelector('#f-monto').addEventListener('input', ()=> actualizarMontoFinalHint(p));
+    p.querySelector('#f-precio-unitario').addEventListener('input', ()=>{ actualizarGananciaHint(p); actualizarPrecioUnidadHint(p); });
+    p.querySelector('#f-precio-unidad').addEventListener('change', ()=> actualizarPrecioUnidadHint(p));
+    const gastoMonto = p.querySelector('#f-gasto-monto');
+    if(gastoMonto) gastoMonto.addEventListener('input', ()=> renderCarritoLista(p));
+
+    p.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
+      if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
+      const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
+      const cantidad = parseFloat(p.querySelector('#f-cantidad').value) || 0;
+      const precioUnitario = costoUnitarioDesde(p, 'f-precio-unitario', 'f-precio-unidad');
+      if(!cantidad || !precioUnitario){ toast('Falta cantidad o precio unitario'); return; }
+
+      carritoTmp.push({
+        codigoVariante: variante.codigo, codigoBase: productoSeleccionado.codigoBase,
+        descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
+        talle: variante.talle, color: variante.color,
+        cantidad, precioUnitario, subtotal: cantidad * precioUnitario,
+        esCompra: movTipo === 'Compra'
+      });
+
+      productoSeleccionado = null; talleColorSeleccion = null;
+      renderBloqueArticulo();
+      p.querySelector('#f-cantidad').value = '1';
+      p.querySelector('#f-precio-unitario').value = '';
+      p.querySelector('#f-precio-unidad').value = '1';
+      p.querySelector('#f-precio-unidad-hint').textContent = '';
+      p.querySelector('#precio-sugerido').textContent = '';
+      p.querySelector('#ganancia-hint').textContent = '';
+      renderCarritoLista(p);
+      toast(`${variante.codigo} agregado`);
+    });
 
     p.querySelector('#btn-guardar-mov').addEventListener('click', async (ev)=>{
       const btn = ev.currentTarget;
       const fecha = p.querySelector('#f-fecha').value;
-      const cantidad = parseFloat(p.querySelector('#f-cantidad').value) || 0;
-      const montoBase = parseFloat(p.querySelector('#f-monto').value) || 0;
-      if(!cantidad || !montoBase){ toast('Falta cantidad o monto'); return; }
-      const monto = calcularMontoFinal(montoBase);
 
-      let registro = { fecha, movimiento: movTipo, cantidad,
-        efectivo: movMedioPago==='Efectivo'?monto:0,
-        transferencia: movMedioPago==='Transferencia'?monto:0,
-        debito: movMedioPago==='Debito'?monto:0 };
-
-      if(movTipo==='Gasto'){
+      if(movTipo === 'Gasto'){
         const desc = p.querySelector('#f-gasto-desc').value.trim();
-        if(!desc){ toast('Falta la descripción del gasto'); return; }
-        registro.codigo = ''; registro.descripcion = desc; registro.categoria = ''; registro.talle=''; registro.color='';
-      } else {
-        if(!productoSeleccionado){ toast('Elegí un artículo'); return; }
-        const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
-        registro.codigo = variante.codigo;
-        registro.descripcion = productoSeleccionado.descripcion;
-        registro.categoria = productoSeleccionado.categoria;
-        registro.talle = variante.talle;
-        registro.color = variante.color;
+        const montoBase = parseFloat(p.querySelector('#f-gasto-monto').value) || 0;
+        if(!desc || !montoBase){ toast('Falta descripción o monto'); return; }
+        const monto = calcularMontoFinal(montoBase);
+        const efectivo = movMedioPago==='Efectivo'?monto:0, transferencia = movMedioPago==='Transferencia'?monto:0, debito = movMedioPago==='Debito'?monto:0;
+        const fila = [fecha, '', desc, '', 'Gasto', 1, -Math.abs(monto), -Math.abs(efectivo), -Math.abs(transferencia), -Math.abs(debito), '', '', ''];
+
+        setLoading(btn, true, 'Guardando…');
+        try {
+          if(SHEETS_URL){
+            try {
+              await sheetsPost({ type:'movimiento', data:{ fila } });
+              toast('Gasto guardado en Google Sheets');
+            } catch(e){
+              if(e.esValidacion){ showError(e.message); return; }
+              PEND_MOV.push({ fecha, movimiento:'Gasto', cantidad:1, efectivo, transferencia, debito, codigo:'', descripcion:desc, categoria:'', talle:'', color:'' });
+              await savePendMov();
+              toast('Sin conexión: quedó pendiente de sincronizar');
+            }
+          } else {
+            PEND_MOV.push({ fecha, movimiento:'Gasto', cantidad:1, efectivo, transferencia, debito, codigo:'', descripcion:desc, categoria:'', talle:'', color:'' });
+            await savePendMov();
+            toast('Gasto agregado a la cola');
+          }
+          renderMovimiento();
+        } finally {
+          setLoading(btn, false);
+        }
+        return;
       }
-      const total = movMedioPago ? (registro.efectivo + registro.transferencia + registro.debito) : monto;
-      const signo = (movTipo === 'Compra' || movTipo === 'Gasto') ? -1 : 1;
-      const fila = [
-        registro.fecha, registro.codigo, registro.descripcion, registro.categoria, registro.movimiento,
-        registro.cantidad, signo * Math.abs(total),
-        signo * Math.abs(registro.efectivo), signo * Math.abs(registro.transferencia), signo * Math.abs(registro.debito),
-        registro.color, '', registro.talle
-      ];
+
+      // Compra o Venta: se guardan todos los artículos del carrito
+      if(!carritoTmp.length){ toast('Agregá al menos un artículo'); return; }
+      const subtotalTotal = calcularSubtotalCarrito();
+      const totalFinal = calcularMontoFinal(subtotalTotal);
+      const signo = movTipo === 'Compra' ? -1 : 1;
 
       setLoading(btn, true, movTipo === 'Venta' ? 'Verificando stock…' : 'Guardando…');
       try {
-        if(SHEETS_URL){
-          try {
-            await sheetsPost({ type: 'movimiento', data: { fila } });
-            toast('Movimiento guardado en Google Sheets');
-          } catch(e){
-            if(e.esValidacion){
-              showError(e.message);
-              return; // no se guarda ni se encola: hay que corregir (ej. no hay stock)
+        let exitosos = 0;
+        const fallidos = [];
+        for(const item of [...carritoTmp]){
+          const montoLinea = subtotalTotal > 0 ? totalFinal * (item.subtotal / subtotalTotal) : 0;
+          const efectivo = movMedioPago==='Efectivo'?montoLinea:0;
+          const transferencia = movMedioPago==='Transferencia'?montoLinea:0;
+          const debito = movMedioPago==='Debito'?montoLinea:0;
+          const fila = [
+            fecha, item.codigoVariante, item.descripcion, item.categoria, movTipo, item.cantidad,
+            signo*Math.abs(montoLinea), signo*Math.abs(efectivo), signo*Math.abs(transferencia), signo*Math.abs(debito),
+            item.color, '', item.talle
+          ];
+          if(SHEETS_URL){
+            try {
+              const payload = { type:'movimiento', data:{ fila } };
+              if(movTipo === 'Compra'){
+                payload.data.actualizarCosto = true;
+                payload.data.codigoBase = item.codigoBase;
+                payload.data.nuevoCostoUnitario = item.precioUnitario;
+              }
+              await sheetsPost(payload);
+              if(movTipo === 'Compra' && PRODUCTOS[item.codigoBase]){
+                PRODUCTOS[item.codigoBase].costo = item.precioUnitario;
+                await saveProductos();
+              }
+              carritoTmp.splice(carritoTmp.indexOf(item), 1);
+              exitosos++;
+            } catch(e){
+              if(e.esValidacion){
+                fallidos.push(`${item.codigoVariante}: ${e.message}`);
+              } else {
+                PEND_MOV.push({ fecha, movimiento: movTipo, cantidad: item.cantidad, efectivo, transferencia, debito,
+                  codigo: item.codigoVariante, descripcion: item.descripcion, categoria: item.categoria, talle: item.talle, color: item.color });
+                await savePendMov();
+                carritoTmp.splice(carritoTmp.indexOf(item), 1);
+                exitosos++;
+              }
             }
-            PEND_MOV.push(registro); await savePendMov();
-            toast('Sin conexión: quedó pendiente de sincronizar');
+          } else {
+            PEND_MOV.push({ fecha, movimiento: movTipo, cantidad: item.cantidad, efectivo, transferencia, debito,
+              codigo: item.codigoVariante, descripcion: item.descripcion, categoria: item.categoria, talle: item.talle, color: item.color });
+            await savePendMov();
+            carritoTmp.splice(carritoTmp.indexOf(item), 1);
+            exitosos++;
           }
-        } else {
-          PEND_MOV.push(registro);
-          await savePendMov();
-          toast('Movimiento agregado a la cola');
         }
+        if(fallidos.length) showError(fallidos.join('\n'));
+        toast(exitosos ? `${exitosos} artículo${exitosos>1?'s':''} guardado${exitosos>1?'s':''}${fallidos.length?`, ${fallidos.length} con error`:''}` : 'No se guardó nada, revisá los errores');
         renderMovimiento();
       } finally {
         setLoading(btn, false);
@@ -1094,6 +1256,48 @@
     });
 
     updatePrecioSugerido();
+  }
+
+  function calcularSubtotalCarrito(){
+    return carritoTmp.reduce((a,i)=>a+i.subtotal, 0);
+  }
+
+  function renderCarritoLista(p){
+    const cont = p.querySelector('#carrito-lista');
+    if(!cont) return;
+    if(!carritoTmp.length){
+      cont.innerHTML = `<p class="hint">Todavía no agregaste ningún artículo.</p>`;
+    } else {
+      cont.innerHTML = carritoTmp.map((item,i)=>`
+        <div class="queue-item">
+          <div class="qi-top"><span>${item.codigoVariante}</span><button type="button" class="carrito-quitar" data-i="${i}" style="background:none;border:none;color:var(--danger);font-size:14px;cursor:pointer;">✕ Quitar</button></div>
+          <div class="qi-desc">${item.descripcion}${(item.talle||item.color) ? ' · '+[item.talle,item.color].filter(Boolean).join(' · ') : ''}</div>
+          <div class="qi-meta">${item.cantidad} × ${fmtMoney(item.precioUnitario)} = <b>${fmtMoney(item.subtotal)}</b></div>
+        </div>
+      `).join('');
+      cont.querySelectorAll('.carrito-quitar').forEach(btn=>btn.addEventListener('click', ()=>{
+        carritoTmp.splice(+btn.dataset.i, 1);
+        renderCarritoLista(p);
+      }));
+    }
+    renderTotales(p);
+  }
+
+  function renderTotales(p){
+    const cont = p.querySelector('#totales-carrito');
+    if(!cont) return;
+    const esGasto = movTipo === 'Gasto';
+    const subtotal = esGasto ? (parseFloat(p.querySelector('#f-gasto-monto')?.value) || 0) : calcularSubtotalCarrito();
+    if(!subtotal){ cont.innerHTML=''; return; }
+    const activos = AJUSTES.filter(a=>a.activo);
+    const total = calcularMontoFinal(subtotal);
+    let html = `<div class="ajuste-row" style="background:none;border:none;padding:6px 0;"><span class="ajuste-nombre">Subtotal</span><b>${fmtMoney(subtotal)}</b></div>`;
+    activos.forEach(a=>{
+      const efecto = subtotal * (a.signo * a.porcentaje / 100);
+      html += `<div class="ajuste-row" style="background:none;border:none;padding:4px 0;"><span class="ajuste-nombre" style="font-size:12.5px;color:var(--ink-dim);">${a.signo>0?'+':'−'} ${a.porcentaje}% ${a.nombre}</span><span style="color:var(--ink-dim);">${fmtMoney(Math.abs(efecto))}</span></div>`;
+    });
+    html += `<div class="ajuste-row" style="background:var(--gold-soft);border:1px solid var(--gold);padding:10px;"><span class="ajuste-nombre" style="color:var(--gold);font-weight:700;">TOTAL</span><b style="color:var(--gold);font-size:16px;">${fmtMoney(total)}</b></div>`;
+    cont.innerHTML = html;
   }
 
   function renderBloqueArticulo(){
@@ -1117,7 +1321,7 @@
         <div class="search-result" data-code="${m.codigoBase}">
           <div class="sr-code">${m.codigoBase} · ${m.categoria}</div>
           <div class="sr-desc">${m.descripcion}</div>
-        </div>`).join('') || `<p class="hint">Sin resultados. ¿Lo cargaste en "Artículo nuevo"?</p>`;
+        </div>`).join('') || `<p class="hint">Sin resultados. ¿Lo cargaste en "Artículo"?</p>`;
       cont.querySelectorAll('.search-result').forEach(r=>{
         r.addEventListener('click', ()=>{
           productoSeleccionado = PRODUCTOS[r.dataset.code];
@@ -1168,15 +1372,41 @@
     if(!p) return;
     const hint = p.querySelector('#precio-sugerido');
     if(!hint) return;
-    if(movTipo==='Gasto' || !productoSeleccionado){ hint.textContent=''; return; }
-    const cant = parseFloat(p.querySelector('#f-cantidad').value) || 1;
+    if(movTipo==='Gasto' || !productoSeleccionado){ hint.textContent=''; actualizarGananciaHint(p); return; }
     if(movTipo==='Compra'){
       hint.innerHTML = `Costo de referencia: <b>${fmtMoney(productoSeleccionado.costo)}</b> por unidad`;
     } else {
-      const esMayor = cant >= UMBRAL_MAYOR;
-      const precioUnit = esMayor ? productoSeleccionado.precioMayor : productoSeleccionado.precioMenor;
-      hint.innerHTML = `Precio sugerido (${esMayor ? 'por mayor, 6+' : 'por menor'}): <b>${fmtMoney(precioUnit)}</b> c/u · Total: <b>${fmtMoney(precioUnit*cant)}</b>`;
+      hint.innerHTML = `Precio por menor: <b>${fmtMoney(productoSeleccionado.precioMenor)}</b> c/u &nbsp;·&nbsp; Precio por mayor (6+ u.): <b>${fmtMoney(productoSeleccionado.precioMayor)}</b> c/u`;
     }
+    actualizarGananciaHint(p);
+  }
+
+  function actualizarPrecioUnidadHint(p){
+    const hint = p.querySelector('#f-precio-unidad-hint');
+    if(!hint) return;
+    const monto = parseFloat(p.querySelector('#f-precio-unitario').value) || 0;
+    const divisor = parseFloat(p.querySelector('#f-precio-unidad').value) || 1;
+    if(!monto || divisor === 1){ hint.textContent = ''; return; }
+    hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
+  }
+
+  function actualizarGananciaHint(p){
+    const hint = p.querySelector('#ganancia-hint');
+    if(!hint) return;
+    if(movTipo !== 'Venta' || !productoSeleccionado){ hint.textContent=''; return; }
+    const cant = parseFloat(p.querySelector('#f-cantidad').value) || 0;
+    const precioUnit = parseFloat(p.querySelector('#f-precio-unitario').value) || 0;
+    const costo = productoSeleccionado.costo || 0;
+    if(!cant || !precioUnit){ hint.textContent=''; return; }
+
+    const gananciaUnit = precioUnit - costo;
+    const gananciaTotal = gananciaUnit * cant;
+    const pctGanancia = costo > 0 ? (gananciaUnit / costo) * 100 : 0;
+    const color = gananciaTotal >= 0 ? 'var(--ok)' : 'var(--danger)';
+
+    hint.innerHTML = `Ganancia sobre el costo (${fmtMoney(costo)} c/u): ` +
+      `<b style="color:${color}">${fmtMoney(gananciaUnit)} c/u (${pctGanancia.toFixed(1)}%)</b> · ` +
+      `Total: <b style="color:${color}">${fmtMoney(gananciaTotal)} (${pctGanancia.toFixed(1)}%)</b>`;
   }
 
   function renderAjustes(p){
@@ -1195,22 +1425,20 @@
 
     cont.querySelectorAll('.ajuste-check').forEach(chk=>chk.addEventListener('change', ()=>{
       AJUSTES[+chk.dataset.i].activo = chk.checked;
-      actualizarMontoFinalHint(p);
+      renderTotales(p);
     }));
     cont.querySelectorAll('.ajuste-signo').forEach(btn=>btn.addEventListener('click', ()=>{
       const a = AJUSTES[+btn.dataset.i];
       a.signo = a.signo > 0 ? -1 : 1;
       renderAjustes(p);
-      actualizarMontoFinalHint(p);
     }));
     cont.querySelectorAll('.ajuste-pct').forEach(inp=>inp.addEventListener('input', ()=>{
       AJUSTES[+inp.dataset.i].porcentaje = parseFloat(inp.value) || 0;
-      actualizarMontoFinalHint(p);
+      renderTotales(p);
     }));
     cont.querySelectorAll('.ajuste-borrar').forEach(btn=>btn.addEventListener('click', ()=>{
       AJUSTES.splice(+btn.dataset.i, 1);
       renderAjustes(p);
-      actualizarMontoFinalHint(p);
     }));
 
     p.querySelector('#add-ajuste').onclick = ()=>{
@@ -1221,10 +1449,9 @@
       p.querySelector('#input-ajuste-nombre').value = '';
       p.querySelector('#input-ajuste-pct').value = '';
       renderAjustes(p);
-      actualizarMontoFinalHint(p);
     };
 
-    actualizarMontoFinalHint(p);
+    renderTotales(p);
   }
 
   function calcularMontoFinal(montoBase){
@@ -1235,15 +1462,6 @@
     return total;
   }
 
-  function actualizarMontoFinalHint(p){
-    const hint = p.querySelector('#monto-final-hint');
-    if(!hint) return;
-    const base = parseFloat(p.querySelector('#f-monto').value) || 0;
-    const activos = AJUSTES.filter(a=>a.activo);
-    if(!base || !activos.length){ hint.textContent=''; return; }
-    const final = calcularMontoFinal(base);
-    hint.innerHTML = `Monto final a registrar: <b>${fmtMoney(final)}</b> (base ${fmtMoney(base)} ${activos.map(a=>`${a.signo>0?'+':'−'}${a.porcentaje}% ${a.nombre}`).join(', ')})`;
-  }
 
   // ============================================================
   // PANEL 3: EXPORTAR
@@ -1325,10 +1543,11 @@
   // ---------- init ----------
   initErrorOverlay();
   loadAll().then(async ()=>{
-    renderArticulo();
     if(SHEETS_URL){
-      await sincronizarCatalogoDesdeSheets(true);
-    } else if(Object.keys(PRODUCTOS).length === 0){
+      await sincronizarCatalogoDesdeSheets(true); // esperamos esto ANTES de pintar la pantalla
+    }
+    renderArticulo();
+    if(!SHEETS_URL && Object.keys(PRODUCTOS).length === 0){
       root.querySelector('[data-tab="catalogo"]').click();
     }
   });
