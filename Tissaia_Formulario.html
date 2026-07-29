@@ -175,11 +175,15 @@
   #tissaia-root .tabbar button.active { color: var(--gold); }
   #tissaia-root .toast {
     position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
-    background: var(--ok); color: #12261a; padding: 10px 20px; border-radius: 999px;
-    font-size: 13.5px; font-weight: 600; opacity: 0; transition: opacity .25s ease; pointer-events: none;
-    max-width: 90%; text-align: center; z-index: 50;
+    background: var(--ok); color: #12261a; padding: 10px 16px 10px 20px; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; opacity: 0; transition: opacity .2s ease; pointer-events: none;
+    max-width: 90%; text-align: center; z-index: 50; display: flex; align-items: center; gap: 10px; cursor: pointer;
   }
-  #tissaia-root .toast.show { opacity: 1; }
+  #tissaia-root .toast.show { opacity: 1; pointer-events: auto; }
+  #tissaia-root .toast .toast-x {
+    background: rgba(18,38,26,0.15); border-radius: 50%; width: 20px; height: 20px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  }
   #tissaia-root .error-overlay {
     position: fixed; inset: 0; background: rgba(10,6,12,0.6); z-index: 90;
     display: none; align-items: flex-end; justify-content: center;
@@ -243,8 +247,12 @@
   function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
   function toast(msg){
     const t = root.querySelector('.toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(()=>t.classList.remove('show'), 3600);
+    t.querySelector('.toast-msg').textContent = msg;
+    t.classList.add('show');
+  }
+  function initToast(){
+    const t = root.querySelector('.toast');
+    t.addEventListener('click', ()=> t.classList.remove('show'));
   }
   function showError(msg){
     const overlay = root.querySelector('.error-overlay');
@@ -395,7 +403,7 @@
     <div class="panel active" id="panel-articulo"></div>
     <div class="panel" id="panel-movimiento"></div>
     <div class="panel" id="panel-exportar"></div>
-    <div class="toast"></div>
+    <div class="toast"><span class="toast-msg"></span><span class="toast-x">✕</span></div>
     <div class="error-overlay">
       <div class="error-card">
         <div class="ec-title">No se pudo guardar</div>
@@ -1132,6 +1140,9 @@
 
     p.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
       if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
+      if(productoSeleccionado.variantes.length > 1 && !talleColorSeleccion){
+        toast('Elegí talle y color antes de agregar'); return;
+      }
       const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
       const cantidad = parseFloat(p.querySelector('#f-cantidad').value) || 0;
       const precioUnitario = costoUnitarioDesde(p, 'f-precio-unitario', 'f-precio-unidad');
@@ -1349,22 +1360,56 @@
       productoSeleccionado = null; talleColorSeleccion = null;
       renderSeleccion(); updatePrecioSugerido();
     });
+
     const variantes = productoSeleccionado.variantes;
-    if(variantes.length > 1){
-      contV.innerHTML = `
-        <label>Talle / Color</label>
-        <select id="sel-variante">
-          <option value="">Elegir…</option>
-          ${variantes.map((v,i)=>`<option value="${i}">${[v.talle,v.color].filter(Boolean).join(' · ') || v.codigo}</option>`).join('')}
-        </select>`;
-      contV.querySelector('#sel-variante').addEventListener('change', (e)=>{
-        talleColorSeleccion = e.target.value!=='' ? variantes[+e.target.value] : null;
-        updatePrecioSugerido();
-      });
-    } else {
+    if(variantes.length <= 1){
       talleColorSeleccion = variantes[0];
       contV.innerHTML = '';
+      return;
     }
+
+    const talles = [...new Set(variantes.map(v=>v.talle).filter(Boolean))];
+    const colores = [...new Set(variantes.map(v=>v.color).filter(Boolean))];
+    talleColorSeleccion = null;
+
+    let html = '';
+    if(talles.length) html += `
+      <label>Talle</label>
+      <select id="sel-talle">
+        <option value="">Elegir talle…</option>
+        ${talles.map(t=>`<option value="${t}">${t}</option>`).join('')}
+      </select>`;
+    if(colores.length) html += `
+      <label>Color</label>
+      <select id="sel-color">
+        <option value="">Elegir color…</option>
+        ${colores.map(c=>`<option value="${c}">${c}</option>`).join('')}
+      </select>`;
+    html += `<p class="hint" id="combo-hint" style="margin-top:6px;"></p>`;
+    contV.innerHTML = html;
+
+    function resolverCombo(){
+      const talleSel = contV.querySelector('#sel-talle');
+      const colorSel = contV.querySelector('#sel-color');
+      const talle = talleSel ? talleSel.value : '';
+      const color = colorSel ? colorSel.value : '';
+      // si falta elegir alguno de los que existen, todavia no resolvemos
+      if((talles.length && !talle) || (colores.length && !color)){ talleColorSeleccion = null; updatePrecioSugerido(); return; }
+      const match = variantes.find(v => (v.talle||'') === talle && (v.color||'') === color);
+      const hint = contV.querySelector('#combo-hint');
+      if(match){
+        talleColorSeleccion = match;
+        hint.textContent = '';
+      } else {
+        talleColorSeleccion = null;
+        hint.innerHTML = `<span style="color:var(--danger);">Esa combinación no existe en el catálogo.</span>`;
+      }
+      updatePrecioSugerido();
+    }
+    const selTalle = contV.querySelector('#sel-talle');
+    const selColor = contV.querySelector('#sel-color');
+    if(selTalle) selTalle.addEventListener('change', resolverCombo);
+    if(selColor) selColor.addEventListener('change', resolverCombo);
   }
 
   function updatePrecioSugerido(){
@@ -1542,6 +1587,7 @@
 
   // ---------- init ----------
   initErrorOverlay();
+  initToast();
   loadAll().then(async ()=>{
     if(SHEETS_URL){
       await sincronizarCatalogoDesdeSheets(true); // esperamos esto ANTES de pintar la pantalla
