@@ -1056,23 +1056,7 @@
       <div id="bloque-carrito">
         <div id="bloque-articulo"></div>
 
-        <label>Cantidad</label>
-        <input type="number" id="f-cantidad" value="1" min="1" />
-
-        <p class="suggested-price" id="precio-sugerido"></p>
-        <label id="label-precio-unitario">Precio unitario ($)</label>
-        <div class="row2">
-          <input type="number" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
-          <select id="f-precio-unidad" style="display:none;">
-            <option value="1">Por unidad</option>
-            <option value="6">La media docena</option>
-            <option value="12">La docena</option>
-          </select>
-        </div>
-        <p class="hint" id="f-precio-unidad-hint" style="margin-top:6px;"></p>
-        <p class="suggested-price" id="ganancia-hint"></p>
-
-        <button class="btn-secondary" type="button" id="btn-agregar-linea">+ Agregar artículo</button>
+        <div id="bloque-cantidad-precio"></div>
 
         <div class="section-label" style="margin-top:22px;">Artículos en esta operación</div>
         <div id="carrito-lista"></div>
@@ -1101,10 +1085,6 @@
       const esGasto = movTipo === 'Gasto';
       p.querySelector('#bloque-gasto').style.display = esGasto ? 'block' : 'none';
       p.querySelector('#bloque-carrito').style.display = esGasto ? 'none' : 'block';
-      p.querySelector('#label-precio-unitario').textContent = movTipo === 'Compra' ? 'Costo' : 'Precio unitario ($)';
-      p.querySelector('#f-precio-unidad').style.display = movTipo === 'Compra' ? 'block' : 'none';
-      if(movTipo !== 'Compra') p.querySelector('#f-precio-unidad').value = '1';
-      p.querySelector('#f-precio-unidad-hint').textContent = '';
       p.querySelector('#btn-guardar-mov').textContent = textoBoton();
     }
     actualizarVisibilidad();
@@ -1116,8 +1096,9 @@
         root.querySelector('#tipo-toggle').querySelectorAll('button').forEach(x=>x.classList.remove('active'));
         b.classList.add('active');
         actualizarVisibilidad();
+        renderSeleccion();
+        renderModoCarga(p);
         renderCarritoLista(p);
-        updatePrecioSugerido();
       });
     });
     root.querySelector('#pago-toggle').querySelectorAll('button').forEach(b=>{
@@ -1131,42 +1112,10 @@
     renderBloqueArticulo();
     renderAjustes(p);
     renderCarritoLista(p);
+    renderModoCarga(p);
 
-    p.querySelector('#f-cantidad').addEventListener('input', updatePrecioSugerido);
-    p.querySelector('#f-precio-unitario').addEventListener('input', ()=>{ actualizarGananciaHint(p); actualizarPrecioUnidadHint(p); });
-    p.querySelector('#f-precio-unidad').addEventListener('change', ()=> actualizarPrecioUnidadHint(p));
     const gastoMonto = p.querySelector('#f-gasto-monto');
     if(gastoMonto) gastoMonto.addEventListener('input', ()=> renderCarritoLista(p));
-
-    p.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
-      if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
-      if(productoSeleccionado.variantes.length > 1 && !talleColorSeleccion){
-        toast('Elegí talle y color antes de agregar'); return;
-      }
-      const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
-      const cantidad = parseFloat(p.querySelector('#f-cantidad').value) || 0;
-      const precioUnitario = costoUnitarioDesde(p, 'f-precio-unitario', 'f-precio-unidad');
-      if(!cantidad || !precioUnitario){ toast('Falta cantidad o precio unitario'); return; }
-
-      carritoTmp.push({
-        codigoVariante: variante.codigo, codigoBase: productoSeleccionado.codigoBase,
-        descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
-        talle: variante.talle, color: variante.color,
-        cantidad, precioUnitario, subtotal: cantidad * precioUnitario,
-        esCompra: movTipo === 'Compra'
-      });
-
-      productoSeleccionado = null; talleColorSeleccion = null;
-      renderBloqueArticulo();
-      p.querySelector('#f-cantidad').value = '1';
-      p.querySelector('#f-precio-unitario').value = '';
-      p.querySelector('#f-precio-unidad').value = '1';
-      p.querySelector('#f-precio-unidad-hint').textContent = '';
-      p.querySelector('#precio-sugerido').textContent = '';
-      p.querySelector('#ganancia-hint').textContent = '';
-      renderCarritoLista(p);
-      toast(`${variante.codigo} agregado`);
-    });
 
     p.querySelector('#btn-guardar-mov').addEventListener('click', async (ev)=>{
       const btn = ev.currentTarget;
@@ -1269,6 +1218,132 @@
     updatePrecioSugerido();
   }
 
+  // ============================================================
+  // Cantidad / Precio: modo simple (una variante) o modo masivo (Compra, varias variantes juntas)
+  // ============================================================
+  function renderModoCarga(p){
+    const cont = p.querySelector('#bloque-cantidad-precio');
+    if(!cont) return;
+    if(!productoSeleccionado){ cont.innerHTML = ''; return; }
+    const esMasivo = movTipo === 'Compra' && productoSeleccionado.variantes.length > 1;
+    if(esMasivo) renderModoMasivo(p, cont); else renderModoSimple(p, cont);
+  }
+
+  function renderModoSimple(p, cont){
+    cont.innerHTML = `
+      <label>Cantidad</label>
+      <input type="number" id="f-cantidad" value="1" min="1" />
+      <p class="suggested-price" id="precio-sugerido"></p>
+      <label id="label-precio-unitario">${movTipo === 'Compra' ? 'Costo' : 'Precio unitario ($)'}</label>
+      <div class="row2">
+        <input type="number" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
+        <select id="f-precio-unidad" style="${movTipo === 'Compra' ? '' : 'display:none;'}">
+          <option value="1">Por unidad</option>
+          <option value="6">La media docena</option>
+          <option value="12">La docena</option>
+        </select>
+      </div>
+      <p class="hint" id="f-precio-unidad-hint" style="margin-top:6px;"></p>
+      <p class="suggested-price" id="ganancia-hint"></p>
+      <button class="btn-secondary" type="button" id="btn-agregar-linea">+ Agregar artículo</button>
+    `;
+    cont.querySelector('#f-cantidad').addEventListener('input', updatePrecioSugerido);
+    cont.querySelector('#f-precio-unitario').addEventListener('input', ()=>{ actualizarGananciaHint(p); actualizarPrecioUnidadHint(p); });
+    cont.querySelector('#f-precio-unidad').addEventListener('change', ()=> actualizarPrecioUnidadHint(p));
+
+    cont.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
+      if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
+      if(productoSeleccionado.variantes.length > 1 && !talleColorSeleccion){
+        toast('Elegí talle y color antes de agregar'); return;
+      }
+      const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
+      const cantidad = parseFloat(cont.querySelector('#f-cantidad').value) || 0;
+      const precioUnitario = costoUnitarioDesde(cont, 'f-precio-unitario', 'f-precio-unidad');
+      if(!cantidad || !precioUnitario){ toast('Falta cantidad o precio unitario'); return; }
+
+      carritoTmp.push({
+        codigoVariante: variante.codigo, codigoBase: productoSeleccionado.codigoBase,
+        descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
+        talle: variante.talle, color: variante.color,
+        cantidad, precioUnitario, subtotal: cantidad * precioUnitario,
+        esCompra: movTipo === 'Compra'
+      });
+
+      productoSeleccionado = null; talleColorSeleccion = null;
+      renderBloqueArticulo();
+      renderModoCarga(p);
+      renderCarritoLista(p);
+      toast(`${variante.codigo} agregado`);
+    });
+
+    updatePrecioSugerido();
+  }
+
+  function renderModoMasivo(p, cont){
+    const variantes = productoSeleccionado.variantes;
+    cont.innerHTML = `
+      <p class="hint">Ingresá el costo una sola vez — se aplica igual a todas las variantes. Completá solo la cantidad de cada talle/color que compraste (dejá en blanco los que no compraste).</p>
+      <label>Costo</label>
+      <div class="row2">
+        <input type="number" id="f-costo-masivo" placeholder="0" inputmode="decimal" />
+        <select id="f-costo-masivo-unidad">
+          <option value="1">Por unidad</option>
+          <option value="6">La media docena</option>
+          <option value="12">La docena</option>
+        </select>
+      </div>
+      <p class="hint" id="f-costo-masivo-hint" style="margin-top:6px;"></p>
+
+      <div class="section-label" style="margin-top:18px;">Cantidades por variante</div>
+      <div id="tabla-masiva">
+        ${variantes.map((v,i)=>`
+          <div class="ajuste-row" style="background:var(--bg-field);">
+            <span class="ajuste-nombre">${[v.talle,v.color].filter(Boolean).join(' · ') || v.codigo}</span>
+            <input type="number" class="qty-masiva" data-i="${i}" placeholder="0" min="0"
+              style="width:64px; flex:none; text-align:center; background:var(--bg); border:1px solid rgba(201,166,107,0.3); border-radius:8px; padding:6px; color:var(--ink);" />
+          </div>
+        `).join('')}
+      </div>
+
+      <button class="btn-secondary" type="button" id="btn-agregar-masivo" style="margin-top:14px;">Agregar todas las cantidades a la compra</button>
+    `;
+
+    function actualizarHintMasivo(){
+      const hint = cont.querySelector('#f-costo-masivo-hint');
+      const monto = parseFloat(cont.querySelector('#f-costo-masivo').value) || 0;
+      const divisor = parseFloat(cont.querySelector('#f-costo-masivo-unidad').value) || 1;
+      if(!monto || divisor === 1){ hint.textContent = ''; return; }
+      hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
+    }
+    cont.querySelector('#f-costo-masivo').addEventListener('input', actualizarHintMasivo);
+    cont.querySelector('#f-costo-masivo-unidad').addEventListener('change', actualizarHintMasivo);
+
+    cont.querySelector('#btn-agregar-masivo').addEventListener('click', ()=>{
+      const costoUnitReal = costoUnitarioDesde(cont, 'f-costo-masivo', 'f-costo-masivo-unidad');
+      if(!costoUnitReal){ toast('Cargá el costo primero'); return; }
+      let agregados = 0;
+      cont.querySelectorAll('.qty-masiva').forEach(inp=>{
+        const cant = parseFloat(inp.value) || 0;
+        if(cant <= 0) return;
+        const v = variantes[+inp.dataset.i];
+        carritoTmp.push({
+          codigoVariante: v.codigo, codigoBase: productoSeleccionado.codigoBase,
+          descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
+          talle: v.talle, color: v.color,
+          cantidad: cant, precioUnitario: costoUnitReal, subtotal: cant * costoUnitReal,
+          esCompra: true
+        });
+        agregados++;
+      });
+      if(!agregados){ toast('Cargá al menos una cantidad'); return; }
+      productoSeleccionado = null; talleColorSeleccion = null;
+      renderBloqueArticulo();
+      renderModoCarga(p);
+      renderCarritoLista(p);
+      toast(`${agregados} variante${agregados>1?'s':''} agregada${agregados>1?'s':''} a la compra`);
+    });
+  }
+
   function calcularSubtotalCarrito(){
     return carritoTmp.reduce((a,i)=>a+i.subtotal, 0);
   }
@@ -1340,7 +1415,7 @@
           cont.innerHTML='';
           bloque.querySelector('#f-buscar').value='';
           renderSeleccion();
-          updatePrecioSugerido();
+          renderModoCarga(root.querySelector('#panel-movimiento'));
         });
       });
     });
@@ -1358,7 +1433,8 @@
       </div>`;
     contP.querySelector('#quitar-producto').addEventListener('click', ()=>{
       productoSeleccionado = null; talleColorSeleccion = null;
-      renderSeleccion(); updatePrecioSugerido();
+      renderSeleccion();
+      renderModoCarga(root.querySelector('#panel-movimiento'));
     });
 
     const variantes = productoSeleccionado.variantes;
