@@ -1361,12 +1361,26 @@
     const esCompra = movTipo === 'Compra';
     const talles = [...new Set(pr.variantes.map(v=>v.talle).filter(Boolean))];
     const colores = [...new Set(pr.variantes.map(v=>v.color).filter(Boolean))];
+    // Si el artículo tiene variantes pero ninguna tiene Talle/Color cargado (datos viejos,
+    // de antes de que la app guardara esa info), usamos un selector directo por código
+    // para no perder la posibilidad de distinguir entre ellas.
+    const sinMetadata = !talles.length && !colores.length;
     const bloque = cont.querySelector('#bloque-entrada-variante');
 
     bloque.innerHTML = `
-      <p class="hint">Elegí talle y color, indicá la cantidad, y "Agregar variante" tantas veces como necesites — sin volver a buscar ${pr.codigoBase}.</p>
-      ${talles.length ? `<label>Talle</label><select id="v-talle"><option value="">Elegir talle…</option>${talles.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>` : ''}
-      ${colores.length ? `<label>Color</label><select id="v-color"><option value="">Elegir color…</option>${colores.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>` : ''}
+      <p class="hint">${sinMetadata
+        ? `Estas variantes de ${pr.codigoBase} no tienen talle/color guardado — elegilas directamente por código. Podés completar el talle/color en la planilla para que la próxima vez aparezcan bien.`
+        : `Elegí talle y color, indicá la cantidad, y "Agregar variante" tantas veces como necesites — sin volver a buscar ${pr.codigoBase}.`}</p>
+      ${sinMetadata ? `
+        <label>Variante</label>
+        <select id="v-variante-directa">
+          <option value="">Elegir…</option>
+          ${pr.variantes.map((v,i)=>`<option value="${i}">${v.codigo}</option>`).join('')}
+        </select>
+      ` : `
+        ${talles.length ? `<label>Talle</label><select id="v-talle"><option value="">Elegir talle…</option>${talles.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>` : ''}
+        ${colores.length ? `<label>Color</label><select id="v-color"><option value="">Elegir color…</option>${colores.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>` : ''}
+      `}
       <label>Cantidad</label>
       <input type="number" id="v-cantidad" value="1" min="1" />
       ${!esCompra ? `
@@ -1384,12 +1398,18 @@
     `;
 
     function resolverCombo(){
+      if(sinMetadata){
+        const sel = bloque.querySelector('#v-variante-directa');
+        const idx = sel ? sel.value : '';
+        return idx === '' ? null : pr.variantes[+idx];
+      }
       const talle = bloque.querySelector('#v-talle') ? bloque.querySelector('#v-talle').value : '';
       const color = bloque.querySelector('#v-color') ? bloque.querySelector('#v-color').value : '';
       if((talles.length && !talle) || (colores.length && !color)) return null;
       return pr.variantes.find(v => (v.talle||'') === talle && (v.color||'') === color) || undefined;
     }
     function actualizarComboHint(){
+      if(sinMetadata) return; // no hay ambigüedad posible: se elige el codigo exacto
       const hint = bloque.querySelector('#v-combo-hint');
       const talleSel = bloque.querySelector('#v-talle'), colorSel = bloque.querySelector('#v-color');
       const talle = talleSel ? talleSel.value : '', color = colorSel ? colorSel.value : '';
