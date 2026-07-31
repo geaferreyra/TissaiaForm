@@ -739,12 +739,12 @@
     if(talles.length && colores.length){
       talles.forEach(t=> colores.forEach(c=> variantes.push({
         codigo: `${codigoBase}-${t.toUpperCase().replace(/\s+/g,'')}-${c.toUpperCase().replace(/\s+/g,'')}`,
-        talle: t, color: c
+        talle: t.toUpperCase(), color: c.toUpperCase()
       })));
     } else if(talles.length){
-      talles.forEach(t=> variantes.push({ codigo: `${codigoBase}-${t.toUpperCase().replace(/\s+/g,'')}`, talle: t, color: '' }));
+      talles.forEach(t=> variantes.push({ codigo: `${codigoBase}-${t.toUpperCase().replace(/\s+/g,'')}`, talle: t.toUpperCase(), color: '' }));
     } else if(colores.length){
-      colores.forEach(c=> variantes.push({ codigo: `${codigoBase}-${c.toUpperCase().replace(/\s+/g,'')}`, talle: '', color: c }));
+      colores.forEach(c=> variantes.push({ codigo: `${codigoBase}-${c.toUpperCase().replace(/\s+/g,'')}`, talle: '', color: c.toUpperCase() }));
     }
     const vistos = new Set();
     return variantes.filter(v => vistos.has(v.codigo) ? false : (vistos.add(v.codigo), true));
