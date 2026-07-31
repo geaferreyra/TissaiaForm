@@ -244,6 +244,33 @@
 
   function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
   function fmtMoney(n){ return '$' + (Math.round(n*100)/100).toLocaleString('es-AR'); }
+
+  // ---------- Formato de moneda en vivo para inputs de costo/precio ----------
+  function formatearInputMoneda(texto){
+    let s = String(texto).replace(/[^\d,]/g, '');
+    const partes = s.split(',');
+    let entero = (partes[0] || '').replace(/^0+(?=\d)/, '').replace(/\D/g, '');
+    entero = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if(partes.length > 1){
+      const decimales = partes.slice(1).join('').replace(/\D/g, '').slice(0, 2);
+      return entero + ',' + decimales;
+    }
+    return entero;
+  }
+  function parseMoneyInput(str){
+    if(!str) return 0;
+    const limpio = String(str).replace(/\./g, '').replace(',', '.');
+    return parseFloat(limpio) || 0;
+  }
+  function attachMoneyMask(input){
+    if(!input || input.dataset.moneyMask) return;
+    input.dataset.moneyMask = '1';
+    input.addEventListener('input', ()=>{
+      const cursorAlFinal = input.selectionStart === input.value.length;
+      input.value = formatearInputMoneda(input.value);
+      if(cursorAlFinal) input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
   function todayStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
   function toast(msg){
     const t = root.querySelector('.toast');
@@ -677,20 +704,22 @@
   const UNIDADES_COSTO = { "1": "por unidad", "6": "la media docena", "12": "la docena" };
 
   function costoUnitarioDesde(p, inputId, selectId){
-    const monto = parseFloat(p.querySelector('#'+inputId).value) || 0;
+    const monto = parseMoneyInput(p.querySelector('#'+inputId).value);
     const divisor = parseFloat(p.querySelector('#'+selectId).value) || 1;
     return monto / divisor;
   }
 
   function conectarCostoUnidad(p, inputId, selectId, hintId){
+    const inputEl = p.querySelector('#'+inputId);
+    attachMoneyMask(inputEl);
     function actualizar(){
-      const monto = parseFloat(p.querySelector('#'+inputId).value) || 0;
+      const monto = parseMoneyInput(inputEl.value);
       const divisor = parseFloat(p.querySelector('#'+selectId).value) || 1;
       const hint = p.querySelector('#'+hintId);
       if(!monto || divisor === 1){ hint.textContent = ''; return; }
       hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
     }
-    p.querySelector('#'+inputId).addEventListener('input', actualizar);
+    inputEl.addEventListener('input', actualizar);
     p.querySelector('#'+selectId).addEventListener('change', actualizar);
     actualizar();
   }
@@ -739,7 +768,7 @@
 
       <label>Costo</label>
       <div class="row2">
-        <input type="number" id="f-costo" placeholder="0" inputmode="decimal" />
+        <input type="text" id="f-costo" placeholder="0" inputmode="decimal" />
         <select id="f-costo-unidad">
           <option value="1">Por unidad</option>
           <option value="6">La media docena</option>
@@ -903,7 +932,7 @@
 
       <label>Costo</label>
       <div class="row2">
-        <input type="number" id="f-costo" value="${pr.costo}" inputmode="decimal" />
+        <input type="text" id="f-costo" value="${(pr.costo||0).toLocaleString('es-AR', {maximumFractionDigits:2})}" inputmode="decimal" />
         <select id="f-costo-unidad">
           <option value="1">Por unidad</option>
           <option value="6">La media docena</option>
@@ -1041,16 +1070,16 @@
 
       <label>Tipo de movimiento</label>
       <div class="type-toggle" id="tipo-toggle">
-        <button data-t="Compra">Compra</button>
-        <button data-t="Venta" class="active">Venta</button>
-        <button data-t="Gasto">Gasto</button>
+        <button data-t="Compra" class="${movTipo==='Compra'?'active':''}">Compra</button>
+        <button data-t="Venta" class="${movTipo==='Venta'?'active':''}">Venta</button>
+        <button data-t="Gasto" class="${movTipo==='Gasto'?'active':''}">Gasto</button>
       </div>
 
       <div id="bloque-gasto" style="display:none;">
         <label>Descripción del gasto</label>
         <input type="text" id="f-gasto-desc" placeholder="Ej: Pago de luz" />
         <label>Monto ($)</label>
-        <input type="number" id="f-gasto-monto" placeholder="0" inputmode="decimal" />
+        <input type="text" id="f-gasto-monto" placeholder="0" inputmode="decimal" />
       </div>
 
       <div id="bloque-carrito">
@@ -1073,9 +1102,9 @@
 
       <label>Medio de pago</label>
       <div class="pay-toggle" id="pago-toggle">
-        <button data-m="Efectivo" class="active">Efectivo</button>
-        <button data-m="Transferencia">Transferencia</button>
-        <button data-m="Debito">Débito/Créd.</button>
+        <button data-m="Efectivo" class="${movMedioPago==='Efectivo'?'active':''}">Efectivo</button>
+        <button data-m="Transferencia" class="${movMedioPago==='Transferencia'?'active':''}">Transferencia</button>
+        <button data-m="Debito" class="${movMedioPago==='Debito'?'active':''}">Débito/Créd.</button>
       </div>
 
       <button class="btn-primary" id="btn-guardar-mov">${textoBoton()}</button>
@@ -1115,7 +1144,7 @@
     renderModoCarga(p);
 
     const gastoMonto = p.querySelector('#f-gasto-monto');
-    if(gastoMonto) gastoMonto.addEventListener('input', ()=> renderCarritoLista(p));
+    if(gastoMonto){ attachMoneyMask(gastoMonto); gastoMonto.addEventListener('input', ()=> renderCarritoLista(p)); }
 
     p.querySelector('#btn-guardar-mov').addEventListener('click', async (ev)=>{
       const btn = ev.currentTarget;
@@ -1123,7 +1152,7 @@
 
       if(movTipo === 'Gasto'){
         const desc = p.querySelector('#f-gasto-desc').value.trim();
-        const montoBase = parseFloat(p.querySelector('#f-gasto-monto').value) || 0;
+        const montoBase = parseMoneyInput(p.querySelector('#f-gasto-monto').value);
         if(!desc || !montoBase){ toast('Falta descripción o monto'); return; }
         const monto = calcularMontoFinal(montoBase);
         const efectivo = movMedioPago==='Efectivo'?monto:0, transferencia = movMedioPago==='Transferencia'?monto:0, debito = movMedioPago==='Debito'?monto:0;
@@ -1219,24 +1248,28 @@
   }
 
   // ============================================================
-  // Cantidad / Precio: modo simple (una variante) o modo masivo (Compra, varias variantes juntas)
+  // Cantidad / Precio: modo único (una sola variante) o modo variantes
+  // (elegís la base una vez, y vas agregando talle+color+cantidad de a uno,
+  // sin repetir la búsqueda ni el costo cada vez)
   // ============================================================
+  let subCarritoVariantes = [];
+
   function renderModoCarga(p){
     const cont = p.querySelector('#bloque-cantidad-precio');
     if(!cont) return;
-    if(!productoSeleccionado){ cont.innerHTML = ''; return; }
-    const esMasivo = movTipo === 'Compra' && productoSeleccionado.variantes.length > 1;
-    if(esMasivo) renderModoMasivo(p, cont); else renderModoSimple(p, cont);
+    if(!productoSeleccionado){ cont.innerHTML = ''; subCarritoVariantes = []; return; }
+    if(productoSeleccionado.variantes.length > 1) renderModoVariantes(p, cont);
+    else renderModoUnico(p, cont);
   }
 
-  function renderModoSimple(p, cont){
+  function renderModoUnico(p, cont){
     cont.innerHTML = `
       <label>Cantidad</label>
       <input type="number" id="f-cantidad" value="1" min="1" />
       <p class="suggested-price" id="precio-sugerido"></p>
       <label id="label-precio-unitario">${movTipo === 'Compra' ? 'Costo' : 'Precio unitario ($)'}</label>
       <div class="row2">
-        <input type="number" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
+        <input type="text" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
         <select id="f-precio-unidad" style="${movTipo === 'Compra' ? '' : 'display:none;'}">
           <option value="1">Por unidad</option>
           <option value="6">La media docena</option>
@@ -1248,15 +1281,13 @@
       <button class="btn-secondary" type="button" id="btn-agregar-linea">+ Agregar artículo</button>
     `;
     cont.querySelector('#f-cantidad').addEventListener('input', updatePrecioSugerido);
+    attachMoneyMask(cont.querySelector('#f-precio-unitario'));
     cont.querySelector('#f-precio-unitario').addEventListener('input', ()=>{ actualizarGananciaHint(p); actualizarPrecioUnidadHint(p); });
     cont.querySelector('#f-precio-unidad').addEventListener('change', ()=> actualizarPrecioUnidadHint(p));
 
     cont.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
       if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
-      if(productoSeleccionado.variantes.length > 1 && !talleColorSeleccion){
-        toast('Elegí talle y color antes de agregar'); return;
-      }
-      const variante = talleColorSeleccion || productoSeleccionado.variantes[0];
+      const variante = productoSeleccionado.variantes[0];
       const cantidad = parseFloat(cont.querySelector('#f-cantidad').value) || 0;
       const precioUnitario = costoUnitarioDesde(cont, 'f-precio-unitario', 'f-precio-unidad');
       if(!cantidad || !precioUnitario){ toast('Falta cantidad o precio unitario'); return; }
@@ -1279,68 +1310,152 @@
     updatePrecioSugerido();
   }
 
-  function renderModoMasivo(p, cont){
-    const variantes = productoSeleccionado.variantes;
+  function renderModoVariantes(p, cont){
+    subCarritoVariantes = [];
+    const esCompra = movTipo === 'Compra';
+    const pr = productoSeleccionado;
+
     cont.innerHTML = `
-      <p class="hint">Ingresá el costo una sola vez — se aplica igual a todas las variantes. Completá solo la cantidad de cada talle/color que compraste (dejá en blanco los que no compraste).</p>
-      <label>Costo</label>
-      <div class="row2">
-        <input type="number" id="f-costo-masivo" placeholder="0" inputmode="decimal" />
-        <select id="f-costo-masivo-unidad">
-          <option value="1">Por unidad</option>
-          <option value="6">La media docena</option>
-          <option value="12">La docena</option>
-        </select>
-      </div>
-      <p class="hint" id="f-costo-masivo-hint" style="margin-top:6px;"></p>
-
-      <div class="section-label" style="margin-top:18px;">Cantidades por variante</div>
-      <div id="tabla-masiva">
-        ${variantes.map((v,i)=>`
-          <div class="ajuste-row" style="background:var(--bg-field);">
-            <span class="ajuste-nombre">${[v.talle,v.color].filter(Boolean).join(' · ') || v.codigo}</span>
-            <input type="number" class="qty-masiva" data-i="${i}" placeholder="0" min="0"
-              style="width:64px; flex:none; text-align:center; background:var(--bg); border:1px solid rgba(201,166,107,0.3); border-radius:8px; padding:6px; color:var(--ink);" />
-          </div>
-        `).join('')}
-      </div>
-
-      <button class="btn-secondary" type="button" id="btn-agregar-masivo" style="margin-top:14px;">Agregar todas las cantidades a la compra</button>
+      ${esCompra ? `
+        <label>Costo (se aplica igual a todas las variantes que agregues abajo)</label>
+        <div class="row2">
+          <input type="text" id="v-costo" placeholder="0" inputmode="decimal" />
+          <select id="v-costo-unidad">
+            <option value="1">Por unidad</option>
+            <option value="6">La media docena</option>
+            <option value="12">La docena</option>
+          </select>
+        </div>
+        <p class="hint" id="v-costo-hint" style="margin-top:6px;"></p>
+      ` : ''}
+      <div id="bloque-entrada-variante" style="margin-top:${esCompra?'18px':'0'};"></div>
     `;
 
-    function actualizarHintMasivo(){
-      const hint = cont.querySelector('#f-costo-masivo-hint');
-      const monto = parseFloat(cont.querySelector('#f-costo-masivo').value) || 0;
-      const divisor = parseFloat(cont.querySelector('#f-costo-masivo-unidad').value) || 1;
-      if(!monto || divisor === 1){ hint.textContent = ''; return; }
-      hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
+    if(esCompra){
+      attachMoneyMask(cont.querySelector('#v-costo'));
+      const actualizarHintCosto = ()=>{
+        const hint = cont.querySelector('#v-costo-hint');
+        const monto = parseMoneyInput(cont.querySelector('#v-costo').value);
+        const divisor = parseFloat(cont.querySelector('#v-costo-unidad').value) || 1;
+        if(!monto || divisor===1){ hint.textContent=''; return; }
+        hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (dividido por ${divisor})`;
+      };
+      cont.querySelector('#v-costo').addEventListener('input', actualizarHintCosto);
+      cont.querySelector('#v-costo-unidad').addEventListener('change', actualizarHintCosto);
     }
-    cont.querySelector('#f-costo-masivo').addEventListener('input', actualizarHintMasivo);
-    cont.querySelector('#f-costo-masivo-unidad').addEventListener('change', actualizarHintMasivo);
 
-    cont.querySelector('#btn-agregar-masivo').addEventListener('click', ()=>{
-      const costoUnitReal = costoUnitarioDesde(cont, 'f-costo-masivo', 'f-costo-masivo-unidad');
-      if(!costoUnitReal){ toast('Cargá el costo primero'); return; }
-      let agregados = 0;
-      cont.querySelectorAll('.qty-masiva').forEach(inp=>{
-        const cant = parseFloat(inp.value) || 0;
-        if(cant <= 0) return;
-        const v = variantes[+inp.dataset.i];
-        carritoTmp.push({
-          codigoVariante: v.codigo, codigoBase: productoSeleccionado.codigoBase,
-          descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
-          talle: v.talle, color: v.color,
-          cantidad: cant, precioUnitario: costoUnitReal, subtotal: cant * costoUnitReal,
-          esCompra: true
-        });
-        agregados++;
+    renderEntradaVariante(p, cont);
+  }
+
+  function renderEntradaVariante(p, cont){
+    const pr = productoSeleccionado;
+    const esCompra = movTipo === 'Compra';
+    const talles = [...new Set(pr.variantes.map(v=>v.talle).filter(Boolean))];
+    const colores = [...new Set(pr.variantes.map(v=>v.color).filter(Boolean))];
+    const bloque = cont.querySelector('#bloque-entrada-variante');
+
+    bloque.innerHTML = `
+      <p class="hint">Elegí talle y color, indicá la cantidad, y "Agregar variante" tantas veces como necesites — sin volver a buscar ${pr.codigoBase}.</p>
+      ${talles.length ? `<label>Talle</label><select id="v-talle"><option value="">Elegir talle…</option>${talles.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>` : ''}
+      ${colores.length ? `<label>Color</label><select id="v-color"><option value="">Elegir color…</option>${colores.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>` : ''}
+      <label>Cantidad</label>
+      <input type="number" id="v-cantidad" value="1" min="1" />
+      ${!esCompra ? `
+        <p class="suggested-price" id="v-precio-sugerido">Precio por menor: <b>${fmtMoney(pr.precioMenor)}</b> c/u &nbsp;·&nbsp; Precio por mayor (6+ u.): <b>${fmtMoney(pr.precioMayor)}</b> c/u</p>
+        <label>Precio unitario ($)</label>
+        <input type="text" id="v-precio" placeholder="0" inputmode="decimal" />
+        <p class="suggested-price" id="v-ganancia-hint"></p>
+      ` : ''}
+      <p class="hint" id="v-combo-hint" style="margin-top:6px;"></p>
+      <button class="btn-secondary" type="button" id="btn-agregar-variante">+ Agregar variante</button>
+
+      <div class="section-label" style="margin-top:20px;">Variantes de ${pr.codigoBase} en esta operación</div>
+      <div id="pendientes-variantes"></div>
+      <button class="btn-primary" type="button" id="btn-agregar-articulos" style="margin-top:14px;">Agregar artículos al carrito</button>
+    `;
+
+    function resolverCombo(){
+      const talle = bloque.querySelector('#v-talle') ? bloque.querySelector('#v-talle').value : '';
+      const color = bloque.querySelector('#v-color') ? bloque.querySelector('#v-color').value : '';
+      if((talles.length && !talle) || (colores.length && !color)) return null;
+      return pr.variantes.find(v => (v.talle||'') === talle && (v.color||'') === color) || undefined;
+    }
+    function actualizarComboHint(){
+      const hint = bloque.querySelector('#v-combo-hint');
+      const talleSel = bloque.querySelector('#v-talle'), colorSel = bloque.querySelector('#v-color');
+      const talle = talleSel ? talleSel.value : '', color = colorSel ? colorSel.value : '';
+      if((talles.length && !talle) || (colores.length && !color)){ hint.textContent = ''; return; }
+      const match = resolverCombo();
+      hint.innerHTML = match ? '' : `<span style="color:var(--danger);">Esa combinación no existe en el catálogo.</span>`;
+    }
+    if(bloque.querySelector('#v-talle')) bloque.querySelector('#v-talle').addEventListener('change', actualizarComboHint);
+    if(bloque.querySelector('#v-color')) bloque.querySelector('#v-color').addEventListener('change', actualizarComboHint);
+    if(!esCompra){
+      const precioInput = bloque.querySelector('#v-precio');
+      attachMoneyMask(precioInput);
+      precioInput.addEventListener('input', ()=>{
+        const cant = parseFloat(bloque.querySelector('#v-cantidad').value) || 0;
+        const precioUnit = parseMoneyInput(precioInput.value);
+        const hint = bloque.querySelector('#v-ganancia-hint');
+        if(!cant || !precioUnit){ hint.textContent=''; return; }
+        const gananciaUnit = precioUnit - pr.costo;
+        const pct = pr.costo>0 ? (gananciaUnit/pr.costo)*100 : 0;
+        const color = gananciaUnit>=0 ? 'var(--ok)' : 'var(--danger)';
+        hint.innerHTML = `Ganancia: <b style="color:${color}">${fmtMoney(gananciaUnit)} c/u (${pct.toFixed(1)}%)</b>`;
       });
-      if(!agregados){ toast('Cargá al menos una cantidad'); return; }
+    }
+
+    bloque.querySelector('#btn-agregar-variante').addEventListener('click', ()=>{
+      const match = resolverCombo();
+      if(match === null){ toast('Elegí talle y color primero'); return; }
+      if(!match){ toast('Esa combinación no existe en el catálogo'); return; }
+      const cantidad = parseFloat(bloque.querySelector('#v-cantidad').value) || 0;
+      if(!cantidad){ toast('Cargá la cantidad'); return; }
+      let precioUnitario;
+      if(esCompra){
+        precioUnitario = costoUnitarioDesde(cont, 'v-costo', 'v-costo-unidad');
+        if(!precioUnitario){ toast('Cargá el costo primero'); return; }
+      } else {
+        precioUnitario = parseMoneyInput(bloque.querySelector('#v-precio').value);
+        if(!precioUnitario){ toast('Cargá el precio unitario'); return; }
+      }
+
+      subCarritoVariantes.push({
+        codigoVariante: match.codigo, codigoBase: pr.codigoBase,
+        descripcion: pr.descripcion, categoria: pr.categoria,
+        talle: match.talle, color: match.color,
+        cantidad, precioUnitario, subtotal: cantidad*precioUnitario, esCompra
+      });
+      renderEntradaVariante(p, cont); // resetea talle/color/cantidad/precio, mantiene el costo global
+      toast(`${match.codigo} agregado a la lista`);
+    });
+
+    const pend = bloque.querySelector('#pendientes-variantes');
+    if(!subCarritoVariantes.length){
+      pend.innerHTML = `<p class="hint">Todavía no agregaste ninguna variante de este artículo.</p>`;
+    } else {
+      pend.innerHTML = subCarritoVariantes.map((it,i)=>`
+        <div class="queue-item">
+          <div class="qi-top"><span>${it.codigoVariante}</span><button type="button" class="quitar-pendiente" data-i="${i}" style="background:none;border:none;color:var(--danger);font-size:14px;cursor:pointer;">✕ Quitar</button></div>
+          <div class="qi-meta">${it.cantidad} × ${fmtMoney(it.precioUnitario)} = <b>${fmtMoney(it.subtotal)}</b></div>
+        </div>
+      `).join('');
+      pend.querySelectorAll('.quitar-pendiente').forEach(btn=>btn.addEventListener('click', ()=>{
+        subCarritoVariantes.splice(+btn.dataset.i, 1);
+        renderEntradaVariante(p, cont);
+      }));
+    }
+
+    bloque.querySelector('#btn-agregar-articulos').addEventListener('click', ()=>{
+      if(!subCarritoVariantes.length){ toast('Agregá al menos una variante primero'); return; }
+      carritoTmp.push(...subCarritoVariantes);
+      const cantidadAgregada = subCarritoVariantes.length;
+      subCarritoVariantes = [];
       productoSeleccionado = null; talleColorSeleccion = null;
       renderBloqueArticulo();
       renderModoCarga(p);
       renderCarritoLista(p);
-      toast(`${agregados} variante${agregados>1?'s':''} agregada${agregados>1?'s':''} a la compra`);
+      toast(`${cantidadAgregada} variante${cantidadAgregada>1?'s':''} de ${pr.codigoBase} agregada${cantidadAgregada>1?'s':''} al carrito`);
     });
   }
 
@@ -1373,7 +1488,7 @@
     const cont = p.querySelector('#totales-carrito');
     if(!cont) return;
     const esGasto = movTipo === 'Gasto';
-    const subtotal = esGasto ? (parseFloat(p.querySelector('#f-gasto-monto')?.value) || 0) : calcularSubtotalCarrito();
+    const subtotal = esGasto ? parseMoneyInput(p.querySelector('#f-gasto-monto')?.value) : calcularSubtotalCarrito();
     if(!subtotal){ cont.innerHTML=''; return; }
     const activos = AJUSTES.filter(a=>a.activo);
     const total = calcularMontoFinal(subtotal);
@@ -1437,61 +1552,11 @@
       renderModoCarga(root.querySelector('#panel-movimiento'));
     });
 
+    // El talle/color para artículos con variantes se elige dentro de "renderModoVariantes"
+    // (tanto en Compra como en Venta) — acá solo resolvemos el caso de una sola variante.
     const variantes = productoSeleccionado.variantes;
-    if(variantes.length <= 1){
-      talleColorSeleccion = variantes[0];
-      contV.innerHTML = '';
-      return;
-    }
-    // En modo masivo (Compra con varias variantes), la elección de talle/color
-    // ya la resuelve la tabla de cantidades — este selector estaría de más y confunde.
-    if(movTipo === 'Compra'){
-      contV.innerHTML = '';
-      return;
-    }
-
-    const talles = [...new Set(variantes.map(v=>v.talle).filter(Boolean))];
-    const colores = [...new Set(variantes.map(v=>v.color).filter(Boolean))];
-    talleColorSeleccion = null;
-
-    let html = '';
-    if(talles.length) html += `
-      <label>Talle</label>
-      <select id="sel-talle">
-        <option value="">Elegir talle…</option>
-        ${talles.map(t=>`<option value="${t}">${t}</option>`).join('')}
-      </select>`;
-    if(colores.length) html += `
-      <label>Color</label>
-      <select id="sel-color">
-        <option value="">Elegir color…</option>
-        ${colores.map(c=>`<option value="${c}">${c}</option>`).join('')}
-      </select>`;
-    html += `<p class="hint" id="combo-hint" style="margin-top:6px;"></p>`;
-    contV.innerHTML = html;
-
-    function resolverCombo(){
-      const talleSel = contV.querySelector('#sel-talle');
-      const colorSel = contV.querySelector('#sel-color');
-      const talle = talleSel ? talleSel.value : '';
-      const color = colorSel ? colorSel.value : '';
-      // si falta elegir alguno de los que existen, todavia no resolvemos
-      if((talles.length && !talle) || (colores.length && !color)){ talleColorSeleccion = null; updatePrecioSugerido(); return; }
-      const match = variantes.find(v => (v.talle||'') === talle && (v.color||'') === color);
-      const hint = contV.querySelector('#combo-hint');
-      if(match){
-        talleColorSeleccion = match;
-        hint.textContent = '';
-      } else {
-        talleColorSeleccion = null;
-        hint.innerHTML = `<span style="color:var(--danger);">Esa combinación no existe en el catálogo.</span>`;
-      }
-      updatePrecioSugerido();
-    }
-    const selTalle = contV.querySelector('#sel-talle');
-    const selColor = contV.querySelector('#sel-color');
-    if(selTalle) selTalle.addEventListener('change', resolverCombo);
-    if(selColor) selColor.addEventListener('change', resolverCombo);
+    talleColorSeleccion = variantes.length === 1 ? variantes[0] : null;
+    contV.innerHTML = '';
   }
 
   function updatePrecioSugerido(){
@@ -1511,7 +1576,7 @@
   function actualizarPrecioUnidadHint(p){
     const hint = p.querySelector('#f-precio-unidad-hint');
     if(!hint) return;
-    const monto = parseFloat(p.querySelector('#f-precio-unitario').value) || 0;
+    const monto = parseMoneyInput(p.querySelector('#f-precio-unitario').value);
     const divisor = parseFloat(p.querySelector('#f-precio-unidad').value) || 1;
     if(!monto || divisor === 1){ hint.textContent = ''; return; }
     hint.innerHTML = `Costo unitario real: <b>${fmtMoney(monto/divisor)}</b> (se guarda así, dividido por ${divisor})`;
@@ -1522,7 +1587,7 @@
     if(!hint) return;
     if(movTipo !== 'Venta' || !productoSeleccionado){ hint.textContent=''; return; }
     const cant = parseFloat(p.querySelector('#f-cantidad').value) || 0;
-    const precioUnit = parseFloat(p.querySelector('#f-precio-unitario').value) || 0;
+    const precioUnit = parseMoneyInput(p.querySelector('#f-precio-unitario').value);
     const costo = productoSeleccionado.costo || 0;
     if(!cant || !precioUnit){ hint.textContent=''; return; }
 
