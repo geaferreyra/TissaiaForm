@@ -1148,7 +1148,11 @@
 
     p.querySelector('#btn-guardar-mov').addEventListener('click', async (ev)=>{
       const btn = ev.currentTarget;
+      if(guardandoMovimiento){ toast('Esperá a que termine de guardar lo anterior'); return; }
+      guardandoMovimiento = true;
       const fecha = p.querySelector('#f-fecha').value;
+
+      try {
 
       if(movTipo === 'Gasto'){
         const desc = p.querySelector('#f-gasto-desc').value.trim();
@@ -1242,6 +1246,10 @@
       } finally {
         setLoading(btn, false);
       }
+
+      } finally {
+        guardandoMovimiento = false;
+      }
     });
 
     updatePrecioSugerido();
@@ -1253,6 +1261,7 @@
   // sin repetir la búsqueda ni el costo cada vez)
   // ============================================================
   let subCarritoVariantes = [];
+  let guardandoMovimiento = false; // evita que dos guardados corran al mismo tiempo (ej: si se cambia de pestaña en medio de un guardado lento)
 
   function renderModoCarga(p){
     const cont = p.querySelector('#bloque-cantidad-precio');
