@@ -1443,6 +1443,12 @@
       contV.innerHTML = '';
       return;
     }
+    // En modo masivo (Compra con varias variantes), la elección de talle/color
+    // ya la resuelve la tabla de cantidades — este selector estaría de más y confunde.
+    if(movTipo === 'Compra'){
+      contV.innerHTML = '';
+      return;
+    }
 
     const talles = [...new Set(variantes.map(v=>v.talle).filter(Boolean))];
     const colores = [...new Set(variantes.map(v=>v.color).filter(Boolean))];
