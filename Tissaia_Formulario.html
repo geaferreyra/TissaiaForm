@@ -366,6 +366,24 @@
     if(!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }
+
+  let stockConsultaId = 0; // evita que una consulta vieja pise a una más nueva si llegan desordenadas
+  async function mostrarStockDisponible(elId, codigo, contenedor){
+    const hint = contenedor.querySelector('#'+elId);
+    if(!hint) return;
+    if(!codigo || !SHEETS_URL){ hint.textContent = ''; return; }
+    const miId = ++stockConsultaId;
+    hint.innerHTML = `<span style="color:var(--ink-dim);">Consultando stock…</span>`;
+    try {
+      const data = await sheetsGet('action=stock&codigo=' + encodeURIComponent(codigo));
+      if(miId !== stockConsultaId) return; // llegó una respuesta vieja, la ignoramos
+      const stock = data && typeof data.stock === 'number' ? data.stock : 0;
+      const color = stock > 0 ? 'var(--ok)' : 'var(--danger)';
+      hint.innerHTML = `Stock disponible de <b>${codigo}</b>: <b style="color:${color}">${stock}</b> unidad${stock===1?'':'es'}`;
+    } catch(e){
+      if(miId === stockConsultaId) hint.textContent = '';
+    }
+  }
   async function sheetsPost(payload){
     if(!SHEETS_URL) return null;
     // Sin header Content-Type explícito: evita el preflight CORS que Apps Script no responde.
@@ -1160,7 +1178,7 @@
         if(!desc || !montoBase){ toast('Falta descripción o monto'); return; }
         const monto = calcularMontoFinal(montoBase);
         const efectivo = movMedioPago==='Efectivo'?monto:0, transferencia = movMedioPago==='Transferencia'?monto:0, debito = movMedioPago==='Debito'?monto:0;
-        const fila = [fecha, '', desc, '', 'Gasto', 1, -Math.abs(monto), -Math.abs(efectivo), -Math.abs(transferencia), -Math.abs(debito), '', '', ''];
+        const fila = [fecha, '', desc, '', 'Gasto', 1, -Math.abs(monto), -Math.abs(efectivo), -Math.abs(transferencia), -Math.abs(debito), '', '', '', '', ''];
 
         setLoading(btn, true, 'Guardando…');
         try {
@@ -1201,10 +1219,11 @@
           const efectivo = movMedioPago==='Efectivo'?montoLinea:0;
           const transferencia = movMedioPago==='Transferencia'?montoLinea:0;
           const debito = movMedioPago==='Debito'?montoLinea:0;
+          const ganancia = movTipo === 'Venta' ? (montoLinea - (item.costo||0)*item.cantidad) : '';
           const fila = [
             fecha, item.codigoVariante, item.descripcion, item.categoria, movTipo, item.cantidad,
             signo*Math.abs(montoLinea), signo*Math.abs(efectivo), signo*Math.abs(transferencia), signo*Math.abs(debito),
-            item.color, '', item.talle
+            item.color, '', item.talle, '', ganancia
           ];
           if(SHEETS_URL){
             try {
@@ -1276,6 +1295,7 @@
       <label>Cantidad</label>
       <input type="number" id="f-cantidad" value="1" min="1" />
       <p class="suggested-price" id="precio-sugerido"></p>
+      ${movTipo === 'Venta' ? `<p class="hint" id="stock-hint-unico"></p>` : ''}
       <label id="label-precio-unitario">${movTipo === 'Compra' ? 'Costo' : 'Precio unitario ($)'}</label>
       <div class="row2">
         <input type="text" id="f-precio-unitario" placeholder="0" inputmode="decimal" />
@@ -1293,6 +1313,9 @@
     attachMoneyMask(cont.querySelector('#f-precio-unitario'));
     cont.querySelector('#f-precio-unitario').addEventListener('input', ()=>{ actualizarGananciaHint(p); actualizarPrecioUnidadHint(p); });
     cont.querySelector('#f-precio-unidad').addEventListener('change', ()=> actualizarPrecioUnidadHint(p));
+    if(movTipo === 'Venta' && productoSeleccionado){
+      mostrarStockDisponible('stock-hint-unico', productoSeleccionado.variantes[0].codigo, cont);
+    }
 
     cont.querySelector('#btn-agregar-linea').addEventListener('click', ()=>{
       if(!productoSeleccionado){ toast('Elegí un artículo primero'); return; }
@@ -1306,6 +1329,7 @@
         descripcion: productoSeleccionado.descripcion, categoria: productoSeleccionado.categoria,
         talle: variante.talle, color: variante.color,
         cantidad, precioUnitario, subtotal: cantidad * precioUnitario,
+        costo: productoSeleccionado.costo,
         esCompra: movTipo === 'Compra'
       });
 
@@ -1390,12 +1414,20 @@
         <p class="suggested-price" id="v-ganancia-hint"></p>
       ` : ''}
       <p class="hint" id="v-combo-hint" style="margin-top:6px;"></p>
+      ${!esCompra ? `<p class="hint" id="v-stock-hint"></p>` : ''}
       <button class="btn-secondary" type="button" id="btn-agregar-variante">+ Agregar variante</button>
 
       <div class="section-label" style="margin-top:20px;">Variantes de ${pr.codigoBase} en esta operación</div>
       <div id="pendientes-variantes"></div>
       <button class="btn-primary" type="button" id="btn-agregar-articulos" style="margin-top:14px;">Agregar artículos al carrito</button>
     `;
+
+    function actualizarStockHint(){
+      if(esCompra) return;
+      const match = resolverCombo();
+      if(!match){ if(bloque.querySelector('#v-stock-hint')) bloque.querySelector('#v-stock-hint').textContent = ''; return; }
+      mostrarStockDisponible('v-stock-hint', match.codigo, bloque);
+    }
 
     function resolverCombo(){
       if(sinMetadata){
@@ -1417,8 +1449,9 @@
       const match = resolverCombo();
       hint.innerHTML = match ? '' : `<span style="color:var(--danger);">Esa combinación no existe en el catálogo.</span>`;
     }
-    if(bloque.querySelector('#v-talle')) bloque.querySelector('#v-talle').addEventListener('change', actualizarComboHint);
-    if(bloque.querySelector('#v-color')) bloque.querySelector('#v-color').addEventListener('change', actualizarComboHint);
+    if(bloque.querySelector('#v-talle')) bloque.querySelector('#v-talle').addEventListener('change', ()=>{ actualizarComboHint(); actualizarStockHint(); });
+    if(bloque.querySelector('#v-color')) bloque.querySelector('#v-color').addEventListener('change', ()=>{ actualizarComboHint(); actualizarStockHint(); });
+    if(bloque.querySelector('#v-variante-directa')) bloque.querySelector('#v-variante-directa').addEventListener('change', actualizarStockHint);
     if(!esCompra){
       const precioInput = bloque.querySelector('#v-precio');
       attachMoneyMask(precioInput);
@@ -1453,7 +1486,7 @@
         codigoVariante: match.codigo, codigoBase: pr.codigoBase,
         descripcion: pr.descripcion, categoria: pr.categoria,
         talle: match.talle, color: match.color,
-        cantidad, precioUnitario, subtotal: cantidad*precioUnitario, esCompra
+        cantidad, precioUnitario, subtotal: cantidad*precioUnitario, costo: pr.costo, esCompra
       });
       renderEntradaVariante(p, cont); // resetea talle/color/cantidad/precio, mantiene el costo global
       toast(`${match.codigo} agregado a la lista`);
@@ -1720,7 +1753,7 @@
         const signo = (registro.movimiento === 'Compra' || registro.movimiento === 'Gasto') ? -1 : 1;
         const fila = [registro.fecha, registro.codigo, registro.descripcion, registro.categoria, registro.movimiento,
           registro.cantidad, signo*Math.abs(total), signo*Math.abs(registro.efectivo), signo*Math.abs(registro.transferencia),
-          signo*Math.abs(registro.debito), registro.color, '', registro.talle];
+          signo*Math.abs(registro.debito), registro.color, '', registro.talle, '', ''];
         try { await sheetsPost({ type:'movimiento', data:{ fila } }); PEND_MOV.splice(PEND_MOV.indexOf(registro),1); ok++; }
         catch(e){ fail++; }
       }
